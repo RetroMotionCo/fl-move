@@ -108,6 +108,22 @@ const STATUS_COLORS = {
   "Done": "bg-emerald-700 text-emerald-100"
 };
 
+// Milestone status options and their visual styles
+const MILESTONE_STATUSES = {
+  "on-track": { label: "On Track",  bg: "bg-emerald-800", text: "text-emerald-200", border: "border-emerald-600", dot: "#22c55e",  hex: "#22c55e"  },
+  "at-risk":  { label: "At Risk",   bg: "bg-yellow-800",  text: "text-yellow-200",  border: "border-yellow-500", dot: "#eab308",  hex: "#eab308"  },
+  "overdue":  { label: "Off Track", bg: "bg-red-900",     text: "text-red-200",     border: "border-red-600",    dot: "#ef4444",  hex: "#ef4444"  },
+  "done":     { label: "Complete",  bg: "bg-slate-700",   text: "text-slate-400",   border: "border-slate-600",  dot: "#475569",  hex: "#475569"  },
+};
+
+// Auto-compute effective milestone status:
+// If manually marked done → done. If past date and not done → overdue. Otherwise use stored status.
+function effectiveMilestoneStatus(m) {
+  if (m.status === "done") return "done";
+  if (m.date < new Date().toISOString().split("T")[0] && m.status !== "done") return "overdue";
+  return m.status || "on-track";
+}
+
 // ─── UTILITIES ────────────────────────────────────────────────────────────────
 
 function genId() {
@@ -270,6 +286,61 @@ function generateSeedTasks() {
   oneTime.forEach((t, i) => tasks.push(createTask({ ...t, frequency: "One-time", sortOrder: i })));
 
   return tasks;
+}
+
+// ─── SEED MILESTONES ──────────────────────────────────────────────────────────
+// Pre-populated key life events for the Bunnell family transition.
+// Dates are targeted around an August 2026 Florida move.
+// Status auto-flips to "overdue" (red) if the date passes without being marked done.
+
+function generateSeedMilestones() {
+  const m = (title, date, description, owner, status = "on-track") => ({
+    id: genId(),
+    title,
+    date,
+    description,
+    owner,
+    status,
+    createdAt: new Date().toISOString(),
+  });
+
+  return [
+    // ── MAY 2026 ──
+    m("Venetian: Sale vs. Close Decision Made",     "2026-05-31", "Commit to selling or closing Venetian Soda Lounge. No more deferring.", "Both"),
+    m("CPA / Attorney First Meeting",                "2026-05-20", "Initial consult covering business liabilities, personal exposure, bankruptcy options.", "Both"),
+    m("Venetian Beverages Wind-Down Started",        "2026-05-25", "Begin resolving remaining Venetian Beverages debt and vendor obligations.", "Justin"),
+
+    // ── JUNE 2026 ──
+    m("Anna: First Florida Interviews",              "2026-06-07",  "Anna actively interviewing for FL healthcare leadership roles ($140K+).", "Anna"),
+    m("Anna: Job Offer Received",                    "2026-06-30",  "Target: Anna has at least one strong offer in hand. $140K minimum.", "Anna"),
+    m("RetroMotion: Restructure Plan Finalized",     "2026-06-15",  "Decision made: keep lean as side business OR begin wind-down. Plan documented.", "Justin"),
+    m("Legal Review Complete",                       "2026-06-20",  "Full picture of which debts are business-only vs. personal exposure.", "Both"),
+    m("Vermont Home: Strategy Decided",              "2026-06-30",  "Sell, rent, or hold Vermont home. Timeline and listing/rental plan in place.", "Both"),
+    m("Florida School Zones Researched",             "2026-06-15",  "Top school zones in Orlando/Winter Park identified. Enrollment requirements confirmed.", "Both"),
+    m("Florida Rental Search Launched",              "2026-06-20",  "Actively searching for 3–4BR rental in target FL school zone. Budget set.", "Both"),
+
+    // ── JULY 2026 ──
+    m("Anna: Job Offer Accepted",                    "2026-07-10",  "Anna accepts a Florida healthcare leadership role. Start date confirmed.", "Anna"),
+    m("Justin: W2 Role or Income Plan Confirmed",    "2026-07-15",  "Justin has a FL W2 offer OR a clear freelance income plan documented.", "Justin"),
+    m("Florida Rental Signed",                       "2026-07-20",  "Lease signed on Florida rental. Move-in date confirmed before school starts.", "Both"),
+    m("Venetian Soda Lounge Closed or Under Contract","2026-07-31", "Venetian is sold, under LOI, or officially closed. No longer operating.", "Both"),
+    m("School Enrollment Submitted",                 "2026-07-15",  "All three kids enrolled in FL schools. Documents submitted.", "Both"),
+    m("Vermont Home Listed or Rented",               "2026-07-15",  "Vermont home is on market or has a tenant secured.", "Both"),
+    m("Moving Company Booked",                       "2026-07-01",  "Movers scheduled for August move to Florida.", "Both"),
+    m("Household Budget Updated for Florida",        "2026-07-15",  "Full budget reflecting FL income, rent, debt payments, and savings.", "Both"),
+
+    // ── AUGUST 2026 ──
+    m("Move to Florida — Target Date",               "2026-08-01",  "Family relocates from Georgia, VT to Orlando/Winter Park area.", "Both"),
+    m("Kids Start Florida Schools",                  "2026-08-20",  "All three children begin the new school year in Florida.", "Both"),
+    m("Anna Starts New Florida Job",                 "2026-08-11",  "Anna's first day at her new Florida healthcare leadership role.", "Anna"),
+    m("Vermont Home Active & Occupied",              "2026-08-15",  "Vermont home sold, rented, or under contract.", "Both"),
+
+    // ── SEPTEMBER 2026 ──
+    m("30-Day Florida Check-In",                     "2026-09-01",  "Family review: pathway still correct? Debt load? Kids settled? Budget holding?", "Both"),
+    m("RetroMotion: First FL Project or Wound Down", "2026-09-15",  "RetroMotion either has first FL-based project OR wind-down is complete.", "Justin"),
+    m("Vermont Home Sold / Fully Resolved",          "2026-09-30",  "Vermont property is sold, under contract, or has a long-term tenant.", "Both"),
+    m("Florida Home Purchase Review",                "2026-09-30",  "Revisit whether to buy in FL. Check debt clarity, cash reserves, job stability.", "Both"),
+  ];
 }
 
 // ─── ROLLOVER LOGIC ────────────────────────────────────────────────────────────
@@ -1480,16 +1551,16 @@ function sameDate(a, b) { return a === b; }
 function getDaysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
 function getFirstDow(y, m)    { return new Date(y, m, 1).getDay(); }
 
-function CalendarView({ tasks, milestones, onAddMilestone, onDeleteMilestone, onEditTask }) {
+function CalendarView({ tasks, milestones, onAddMilestone, onDeleteMilestone, onUpdateMilestone, onEditTask }) {
   const today = todayISO();
   const todayDate = new Date();
 
   const [viewMode, setViewMode] = useState("4-Month");
-  // anchor: { year, month } for month/4-month; { year, week: ISO week start } for week
   const [anchor, setAnchor] = useState({ year: todayDate.getFullYear(), month: todayDate.getMonth() });
   const [selectedDay, setSelectedDay] = useState(null);
   const [showMilestoneForm, setShowMilestoneForm] = useState(false);
-  const [milestoneForm, setMilestoneForm] = useState({ title: "", date: today, description: "", owner: "Both" });
+  const [editingMilestone, setEditingMilestone] = useState(null); // null = new, object = edit
+  const [milestoneForm, setMilestoneForm] = useState({ title: "", date: today, description: "", owner: "Both", status: "on-track" });
 
   // Build lookup: date-string → { tasks: [], milestones: [] }
   const dayData = useMemo(() => {
@@ -1512,7 +1583,7 @@ function CalendarView({ tasks, milestones, onAddMilestone, onDeleteMilestone, on
   function navigate(delta) {
     if (viewMode === "Week") {
       setAnchor(a => {
-        const d = new Date(a.weekStart || today);
+        const d = new Date((a.weekStart || today) + "T00:00:00");
         d.setDate(d.getDate() + delta * 7);
         return { ...a, weekStart: d.toISOString().split("T")[0] };
       });
@@ -1533,37 +1604,76 @@ function CalendarView({ tasks, milestones, onAddMilestone, onDeleteMilestone, on
     setSelectedDay(today);
   }
 
-  // ── Day dot indicators ──
+  function openNewMilestone(date) {
+    setEditingMilestone(null);
+    setMilestoneForm({ title: "", date: date || selectedDay || today, description: "", owner: "Both", status: "on-track" });
+    setShowMilestoneForm(true);
+  }
+
+  function openEditMilestone(m) {
+    setEditingMilestone(m);
+    setMilestoneForm({ title: m.title, date: m.date, description: m.description || "", owner: m.owner || "Both", status: m.status || "on-track" });
+    setShowMilestoneForm(true);
+  }
+
+  // ── Milestone chip color based on effective status ──
+  function MilestoneChip({ m, mini = false }) {
+    const es = effectiveMilestoneStatus(m);
+    const st = MILESTONE_STATUSES[es] || MILESTONE_STATUSES["on-track"];
+    return (
+      <div
+        onClick={e => { e.stopPropagation(); openEditMilestone(m); }}
+        title={m.title}
+        className={`text-xs rounded px-1 py-0.5 mb-0.5 cursor-pointer hover:opacity-80 border font-semibold truncate flex items-center gap-1 ${st.bg} ${st.text} ${st.border}`}
+        style={{ maxWidth: mini ? 90 : "100%" }}
+      >
+        <span>★</span>
+        <span className="truncate">{m.title}</span>
+      </div>
+    );
+  }
+
+  // ── Day dots for mini 4-month view ──
   function DayDots({ dateStr }) {
     const d = dayData[dateStr];
     if (!d) return null;
-    const ownerColors = { Justin: "#3b82f6", Anna: "#ec4899", Both: "#8b5cf6" };
-    const dots = [
-      ...d.tasks.slice(0, 4).map(t => ({ color: ownerColors[t.owner] || "#6b7280", type: "task" })),
-      ...d.milestones.slice(0, 2).map(() => ({ color: "#f59e0b", type: "milestone" })),
-    ].slice(0, 5);
+    // Show milestone chips if any (prioritized), then task dots
+    const hasMilestones = d.milestones.length > 0;
+    if (hasMilestones) {
+      return (
+        <div className="w-full mt-0.5">
+          {d.milestones.slice(0, 2).map(m => {
+            const es = effectiveMilestoneStatus(m);
+            const st = MILESTONE_STATUSES[es] || MILESTONE_STATUSES["on-track"];
+            return (
+              <div key={m.id} className={`w-full rounded text-center leading-tight mb-px ${st.bg} ${st.text}`}
+                style={{ fontSize: "7px", padding: "1px 2px", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
+                ★ {m.title}
+              </div>
+            );
+          })}
+          {d.milestones.length > 2 && <div style={{fontSize:"7px",color:"#94a3b8",textAlign:"center"}}>+{d.milestones.length-2}</div>}
+        </div>
+      );
+    }
+    // Task dots only
+    const dots = d.tasks.slice(0, 5).map(t => OWNER_COLORS[t.owner]?.hex || "#8b5cf6");
     return (
-      <div className="flex flex-wrap gap-0.5 mt-0.5 justify-center">
-        {dots.map((dot, i) => (
-          <div key={i} className="rounded-full" style={{ width: dot.type === "milestone" ? 6 : 5, height: dot.type === "milestone" ? 6 : 5, backgroundColor: dot.color }} />
-        ))}
-        {((d.tasks.length + d.milestones.length) > 5) && <span style={{fontSize:"8px",color:"#64748b"}}>+{d.tasks.length+d.milestones.length-5}</span>}
+      <div className="flex flex-wrap gap-px mt-0.5 justify-center">
+        {dots.map((color, i) => <div key={i} className="rounded-full" style={{ width: 5, height: 5, backgroundColor: color }} />)}
+        {d.tasks.length > 5 && <span style={{fontSize:"7px",color:"#64748b"}}>+{d.tasks.length-5}</span>}
       </div>
     );
   }
 
   // ── Single month grid ──
   function MonthGrid({ year, month, mini = false }) {
-    const firstDow   = getFirstDow(year, month);
+    const firstDow    = getFirstDow(year, month);
     const daysInMonth = getDaysInMonth(year, month);
     const cells = [];
     for (let i = 0; i < firstDow; i++) cells.push(null);
     for (let d = 1; d <= daysInMonth; d++) cells.push(d);
     while (cells.length % 7 !== 0) cells.push(null);
-
-    const cellBase = mini
-      ? "relative flex flex-col items-center justify-start rounded cursor-pointer hover:bg-slate-700/60 transition-colors py-0.5 min-h-[32px] text-xs"
-      : "relative flex flex-col items-start rounded-lg cursor-pointer hover:bg-slate-700/60 transition-colors p-1 min-h-[72px] text-sm";
 
     return (
       <div>
@@ -1572,28 +1682,44 @@ function CalendarView({ tasks, milestones, onAddMilestone, onDeleteMilestone, on
         </div>
         <div className="grid grid-cols-7 gap-px mb-1">
           {DAY_LABELS.map(d => (
-            <div key={d} className={`text-center text-slate-500 font-medium ${mini ? "text-xs" : "text-xs"}`}>{mini ? d.slice(0,1) : d}</div>
+            <div key={d} className="text-center text-slate-500 font-medium text-xs">{mini ? d[0] : d}</div>
           ))}
         </div>
         <div className="grid grid-cols-7 gap-px">
           {cells.map((day, idx) => {
             if (!day) return <div key={idx} />;
-            const dateStr  = calISO(year, month, day);
-            const isToday  = dateStr === today;
+            const dateStr    = calISO(year, month, day);
+            const isToday    = dateStr === today;
             const isSelected = dateStr === selectedDay;
-            const hasData  = !!dayData[dateStr];
+            const data       = dayData[dateStr];
+            const hasMilestone = data && data.milestones.length > 0;
+            const cellH      = mini ? "min-h-[38px]" : "min-h-[80px]";
             return (
               <div
                 key={idx}
                 onClick={() => setSelectedDay(dateStr === selectedDay ? null : dateStr)}
-                className={`${cellBase}
-                  ${isToday    ? "bg-teal-800/50 ring-1 ring-teal-500" : ""}
-                  ${isSelected ? "bg-teal-700/40 ring-1 ring-teal-400" : ""}
-                  ${hasData    ? "font-semibold" : ""}
+                className={`relative flex flex-col rounded cursor-pointer transition-colors p-0.5
+                  ${cellH}
+                  ${isToday    ? "bg-teal-800/50 ring-1 ring-teal-500" : hasMilestone ? "bg-slate-700/30" : "hover:bg-slate-700/40"}
+                  ${isSelected ? "ring-2 ring-teal-400" : ""}
                 `}
               >
-                <span className={`${mini ? "" : "ml-1"} ${isToday ? "text-teal-300" : "text-slate-300"}`}>{day}</span>
+                <span className={`text-xs font-semibold text-center ${isToday ? "text-teal-300" : hasMilestone ? "text-white" : "text-slate-400"}`}>{day}</span>
                 <DayDots dateStr={dateStr} />
+                {!mini && data && data.tasks.length > 0 && (
+                  <div className="mt-auto">
+                    {data.tasks.slice(0, 2).map(t => {
+                      const c = OWNER_COLORS[t.owner] || OWNER_COLORS.Both;
+                      return (
+                        <div key={t.id} className={`text-xs rounded px-1 leading-tight mb-px truncate ${c.bg} ${c.text} ${t.status === "Done" ? "opacity-40 line-through" : ""}`}
+                          style={{ fontSize: "10px" }}>
+                          {t.title}
+                        </div>
+                      );
+                    })}
+                    {data.tasks.length > 2 && <div className="text-slate-500 text-center" style={{fontSize:"9px"}}>+{data.tasks.length-2} tasks</div>}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -1609,8 +1735,7 @@ function CalendarView({ tasks, milestones, onAddMilestone, onDeleteMilestone, on
       : (() => { const d = new Date(); d.setDate(d.getDate() - d.getDay()); return d; })();
 
     const days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(ws); d.setDate(ws.getDate() + i);
-      return d;
+      const d = new Date(ws); d.setDate(ws.getDate() + i); return d;
     });
 
     return (
@@ -1620,36 +1745,29 @@ function CalendarView({ tasks, milestones, onAddMilestone, onDeleteMilestone, on
         </div>
         <div className="grid grid-cols-7 gap-2">
           {days.map((d, i) => {
-            const dateStr   = d.toISOString().split("T")[0];
-            const isToday   = dateStr === today;
+            const dateStr    = d.toISOString().split("T")[0];
+            const isToday    = dateStr === today;
             const isSelected = dateStr === selectedDay;
-            const data      = dayData[dateStr] || { tasks: [], milestones: [] };
+            const data       = dayData[dateStr] || { tasks: [], milestones: [] };
             return (
-              <div
-                key={i}
-                onClick={() => setSelectedDay(dateStr === selectedDay ? null : dateStr)}
-                className={`rounded-lg p-2 min-h-[120px] cursor-pointer border transition-colors
+              <div key={i} onClick={() => setSelectedDay(dateStr === selectedDay ? null : dateStr)}
+                className={`rounded-lg p-2 min-h-[140px] cursor-pointer border transition-colors
                   ${isToday    ? "border-teal-500 bg-teal-900/30" : "border-slate-700 bg-slate-800/60"}
-                  ${isSelected ? "ring-2 ring-teal-400" : ""}
-                  hover:border-slate-500`}
-              >
-                <div className={`text-xs font-bold mb-1 ${isToday ? "text-teal-300" : "text-slate-400"}`}>
+                  ${isSelected ? "ring-2 ring-teal-400" : ""} hover:border-slate-500`}>
+                <div className={`text-xs font-bold mb-1.5 ${isToday ? "text-teal-300" : "text-slate-400"}`}>
                   {DAY_LABELS[d.getDay()]}<br/>
-                  <span className={`text-sm ${isToday ? "text-teal-200" : "text-slate-200"}`}>{d.getDate()}</span>
+                  <span className={`text-base ${isToday ? "text-teal-200" : "text-slate-200"}`}>{d.getDate()}</span>
                 </div>
-                {data.milestones.map(m => (
-                  <div key={m.id} className="text-xs bg-amber-900/60 text-amber-200 rounded px-1 py-0.5 mb-0.5 truncate">★ {m.title}</div>
-                ))}
-                {data.tasks.slice(0, 4).map(t => {
+                {data.milestones.map(m => <MilestoneChip key={m.id} m={m} />)}
+                {data.tasks.slice(0, 5).map(t => {
                   const c = OWNER_COLORS[t.owner] || OWNER_COLORS.Both;
                   return (
-                    <div key={t.id} onClick={e => { e.stopPropagation(); onEditTask && onEditTask(t); }}
-                      className={`text-xs rounded px-1 py-0.5 mb-0.5 truncate cursor-pointer hover:opacity-80 ${c.bg} ${c.text} ${t.status === "Done" ? "opacity-40 line-through" : ""}`}>
+                    <div key={t.id} className={`text-xs rounded px-1 py-0.5 mb-0.5 truncate ${c.bg} ${c.text} ${t.status === "Done" ? "opacity-40 line-through" : ""}`}>
                       {t.title}
                     </div>
                   );
                 })}
-                {data.tasks.length > 4 && <div className="text-xs text-slate-500">+{data.tasks.length - 4} more</div>}
+                {data.tasks.length > 5 && <div className="text-xs text-slate-500">+{data.tasks.length - 5} tasks</div>}
               </div>
             );
           })}
@@ -1658,62 +1776,75 @@ function CalendarView({ tasks, milestones, onAddMilestone, onDeleteMilestone, on
     );
   }
 
-  // ── Selected day panel ──
+  // ── Selected day detail panel ──
   function DayPanel() {
     if (!selectedDay) return null;
     const data = dayData[selectedDay] || { tasks: [], milestones: [] };
     const [y, m, d] = selectedDay.split("-").map(Number);
-    const label = `${MONTH_NAMES[m-1]} ${d}, ${y}`;
     return (
       <div className="bg-slate-800 border border-slate-600 rounded-xl p-4 mt-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-bold text-white">{label}</h3>
+          <h3 className="font-bold text-white">{MONTH_NAMES[m-1]} {d}, {y}</h3>
           <div className="flex gap-2">
-            <button
-              onClick={() => { setMilestoneForm(f => ({ ...f, date: selectedDay })); setShowMilestoneForm(true); }}
-              className="text-xs bg-amber-700 hover:bg-amber-600 text-white px-2 py-1 rounded">
-              + Milestone
-            </button>
+            <button onClick={() => openNewMilestone(selectedDay)}
+              className="text-xs bg-amber-700 hover:bg-amber-600 text-white px-2 py-1 rounded">+ Milestone</button>
             <button onClick={() => setSelectedDay(null)} className="text-slate-400 hover:text-white text-sm">✕</button>
           </div>
         </div>
 
         {data.milestones.length === 0 && data.tasks.length === 0 && (
-          <p className="text-slate-500 text-sm">Nothing scheduled for this day.</p>
+          <p className="text-slate-500 text-sm">Nothing scheduled. Add a milestone or set task due dates here.</p>
         )}
 
-        {data.milestones.map(m => (
-          <div key={m.id} className="bg-amber-900/40 border border-amber-700 rounded-lg p-3 mb-2">
-            <div className="flex items-start justify-between">
-              <div>
-                <span className="text-xs text-amber-400 font-bold uppercase">★ Milestone</span>
-                <p className="text-white font-semibold">{m.title}</p>
-                {m.description && <p className="text-slate-300 text-sm">{m.description}</p>}
-                {m.owner && <OwnerBadge owner={m.owner} />}
+        {data.milestones.map(m => {
+          const es = effectiveMilestoneStatus(m);
+          const st = MILESTONE_STATUSES[es] || MILESTONE_STATUSES["on-track"];
+          return (
+            <div key={m.id} className={`border rounded-lg p-3 mb-2 ${st.border} ${st.bg}/20`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded border ${st.bg} ${st.text} ${st.border}`}>★ {st.label}</span>
+                    {m.owner && <OwnerBadge owner={m.owner} />}
+                  </div>
+                  <p className="text-white font-semibold">{m.title}</p>
+                  {m.description && <p className="text-slate-300 text-sm mt-1">{m.description}</p>}
+                  {/* Status toggle buttons */}
+                  <div className="flex gap-1 mt-2 flex-wrap">
+                    {Object.entries(MILESTONE_STATUSES).map(([key, s]) => (
+                      <button key={key}
+                        onClick={() => onUpdateMilestone({ ...m, status: key })}
+                        className={`text-xs px-2 py-0.5 rounded border transition-all
+                          ${(m.status === key || (!m.status && key === "on-track"))
+                            ? `${s.bg} ${s.text} ${s.border} font-bold`
+                            : "border-slate-600 text-slate-400 hover:border-slate-400"}`}>
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <button onClick={() => openEditMilestone(m)} className="text-slate-400 hover:text-teal-400 text-xs px-1.5 py-0.5 rounded hover:bg-slate-700">✎</button>
+                  <button onClick={() => onDeleteMilestone(m.id)} className="text-slate-500 hover:text-red-400 text-xs px-1.5 py-0.5 rounded hover:bg-slate-700">✕</button>
+                </div>
               </div>
-              <button onClick={() => onDeleteMilestone(m.id)} className="text-slate-500 hover:text-red-400 text-sm ml-2">✕</button>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {data.tasks.map(t => {
           const overdue = isOverdue(t.dueDate) && t.status !== "Done";
           const c = OWNER_COLORS[t.owner] || OWNER_COLORS.Both;
           return (
-            <div key={t.id}
-              onClick={() => onEditTask && onEditTask(t)}
-              className={`bg-slate-700/60 border rounded-lg p-3 mb-2 cursor-pointer hover:bg-slate-700 transition-colors
-                ${overdue ? "border-red-700" : "border-slate-600"} ${t.status === "Done" ? "opacity-40" : ""}`}>
+            <div key={t.id} className={`bg-slate-700/40 border rounded-lg p-3 mb-2 ${overdue ? "border-red-700" : "border-slate-600"} ${t.status === "Done" ? "opacity-50" : ""}`}>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className={`w-2.5 h-2.5 rounded-full shrink-0`} style={{ backgroundColor: c.hex }} />
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.hex }} />
                 <span className={`font-semibold text-sm ${t.status === "Done" ? "line-through text-slate-500" : "text-white"}`}>{t.title}</span>
               </div>
               <div className="flex flex-wrap gap-1 mt-1.5">
-                <OwnerBadge owner={t.owner} />
-                <PriorityBadge priority={t.priority} />
-                <StatusBadge status={t.status} />
+                <OwnerBadge owner={t.owner} /><PriorityBadge priority={t.priority} /><StatusBadge status={t.status} />
+                {overdue && <Badge className="bg-red-900 text-red-300">⚠ Overdue</Badge>}
               </div>
-              {overdue && <p className="text-red-400 text-xs mt-1">⚠ Overdue</p>}
             </div>
           );
         })}
@@ -1721,30 +1852,46 @@ function CalendarView({ tasks, milestones, onAddMilestone, onDeleteMilestone, on
     );
   }
 
-  // ── Milestone form modal ──
+  // ── Add / Edit Milestone modal ──
   function MilestoneModal() {
     return (
-      <div className="modal-overlay fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={e => e.target === e.currentTarget && setShowMilestoneForm(false)}>
+      <div className="modal-overlay fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+        onClick={e => e.target === e.currentTarget && setShowMilestoneForm(false)}>
         <div className="bg-slate-800 border border-slate-700 rounded-xl w-full max-w-md p-5 shadow-2xl">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-bold text-lg">Add Milestone</h3>
+            <h3 className="text-white font-bold text-lg">{editingMilestone ? "Edit Milestone" : "Add Milestone"}</h3>
             <button onClick={() => setShowMilestoneForm(false)} className="text-slate-400 hover:text-white">✕</button>
           </div>
           <div className="space-y-3">
             <div>
               <label className="block text-xs text-slate-400 mb-1">Title *</label>
               <input value={milestoneForm.title} onChange={e => setMilestoneForm(f => ({...f, title: e.target.value}))}
-                className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-sm" placeholder="e.g. Anna first FL interview" />
+                className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-sm"
+                placeholder="e.g. Anna receives FL job offer" />
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Date</label>
+              <label className="block text-xs text-slate-400 mb-1">Target Date</label>
               <input type="date" value={milestoneForm.date} onChange={e => setMilestoneForm(f => ({...f, date: e.target.value}))}
                 className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-sm" />
             </div>
             <div>
+              <label className="block text-xs text-slate-400 mb-1">Status</label>
+              <div className="flex gap-1 flex-wrap">
+                {Object.entries(MILESTONE_STATUSES).map(([key, s]) => (
+                  <button key={key} type="button"
+                    onClick={() => setMilestoneForm(f => ({...f, status: key}))}
+                    className={`text-xs px-2.5 py-1 rounded border transition-all font-medium
+                      ${milestoneForm.status === key ? `${s.bg} ${s.text} ${s.border}` : "border-slate-600 text-slate-400 hover:border-slate-400"}`}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
               <label className="block text-xs text-slate-400 mb-1">Description</label>
               <textarea value={milestoneForm.description} onChange={e => setMilestoneForm(f => ({...f, description: e.target.value}))}
-                rows={2} className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-sm" />
+                rows={2} className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-sm"
+                placeholder="What does success look like for this milestone?" />
             </div>
             <div>
               <label className="block text-xs text-slate-400 mb-1">Owner</label>
@@ -1754,83 +1901,113 @@ function CalendarView({ tasks, milestones, onAddMilestone, onDeleteMilestone, on
               </select>
             </div>
           </div>
-          <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setShowMilestoneForm(false)} className="bg-slate-600 text-white text-sm px-4 py-2 rounded">Cancel</button>
-            <button
-              onClick={() => {
-                if (!milestoneForm.title.trim()) return;
-                onAddMilestone({ ...milestoneForm, id: genId(), createdAt: new Date().toISOString() });
-                setShowMilestoneForm(false);
-                setMilestoneForm({ title: "", date: today, description: "", owner: "Both" });
-              }}
-              className="bg-amber-600 hover:bg-amber-500 text-white text-sm px-4 py-2 rounded font-semibold">
-              Add Milestone
-            </button>
+          <div className="flex justify-between gap-2 mt-4">
+            <div>
+              {editingMilestone && (
+                <button onClick={() => { onDeleteMilestone(editingMilestone.id); setShowMilestoneForm(false); }}
+                  className="text-red-400 hover:text-red-300 text-sm px-3 py-2 rounded border border-red-800 hover:border-red-600">Delete</button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setShowMilestoneForm(false)} className="bg-slate-600 text-white text-sm px-4 py-2 rounded">Cancel</button>
+              <button
+                onClick={() => {
+                  if (!milestoneForm.title.trim()) return;
+                  if (editingMilestone) {
+                    onUpdateMilestone({ ...editingMilestone, ...milestoneForm });
+                  } else {
+                    onAddMilestone({ ...milestoneForm, id: genId(), createdAt: new Date().toISOString() });
+                  }
+                  setShowMilestoneForm(false);
+                  setMilestoneForm({ title: "", date: today, description: "", owner: "Both", status: "on-track" });
+                }}
+                className="bg-amber-600 hover:bg-amber-500 text-white text-sm px-4 py-2 rounded font-semibold">
+                {editingMilestone ? "Save Changes" : "Add Milestone"}
+              </button>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // ── Upcoming milestones sidebar ──
-  const upcomingMilestones = useMemo(() => {
-    return (milestones || [])
-      .filter(m => m.date >= today)
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(0, 10);
-  }, [milestones, today]);
+  // ── All milestones sidebar (sorted by date, color-coded) ──
+  const sortedMilestones = useMemo(() => {
+    return [...(milestones || [])].sort((a, b) => a.date.localeCompare(b.date));
+  }, [milestones]);
+
+  const overdueMilestones  = sortedMilestones.filter(m => effectiveMilestoneStatus(m) === "overdue");
+  const atRiskMilestones   = sortedMilestones.filter(m => effectiveMilestoneStatus(m) === "at-risk");
+  const upcomingMilestones = sortedMilestones.filter(m => !["overdue","done"].includes(effectiveMilestoneStatus(m)) && m.date >= today);
 
   return (
     <div>
       {showMilestoneForm && <MilestoneModal />}
 
-      {/* Header controls */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
-          <h2 className="text-xl font-bold text-white">Calendar</h2>
-          <p className="text-sm text-slate-400">Task due dates and milestones. Click any day for details.</p>
+          <h2 className="text-xl font-bold text-white">Calendar &amp; Milestones</h2>
+          <p className="text-sm text-slate-400">Key life events + task due dates. Milestones turn red when off track.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {CAL_VIEWS.map(v => (
             <button key={v} onClick={() => setViewMode(v)}
               className={`text-sm px-3 py-1.5 rounded-lg border font-medium transition-all
-                ${viewMode === v ? "bg-teal-700 border-teal-600 text-white" : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white"}`}>
-              {v}
-            </button>
+                ${viewMode === v ? "bg-teal-700 border-teal-600 text-white" : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white"}`}>{v}</button>
           ))}
-          <div className="flex items-center gap-1 ml-2">
+          <div className="flex items-center gap-1">
             <button onClick={() => navigate(-1)} className="bg-slate-700 hover:bg-slate-600 text-white px-2.5 py-1.5 rounded-lg text-sm">◀</button>
             <button onClick={goToday}           className="bg-teal-700 hover:bg-teal-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium">Today</button>
             <button onClick={() => navigate(1)} className="bg-slate-700 hover:bg-slate-600 text-white px-2.5 py-1.5 rounded-lg text-sm">▶</button>
           </div>
-          <button
-            onClick={() => { setMilestoneForm(f => ({ ...f, date: selectedDay || today })); setShowMilestoneForm(true); }}
-            className="text-sm bg-amber-700 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg font-medium">
-            + Milestone
-          </button>
+          <button onClick={() => openNewMilestone(selectedDay || today)}
+            className="text-sm bg-amber-700 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg font-medium">+ Milestone</button>
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex flex-wrap gap-4 mb-4 text-xs text-slate-400">
-        {Object.entries(OWNER_COLORS).map(([name, c]) => (
-          <span key={name} className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.hex }} />{name}
+      {/* Status legend */}
+      <div className="flex flex-wrap gap-3 mb-4 text-xs">
+        {Object.entries(MILESTONE_STATUSES).map(([k, s]) => (
+          <span key={k} className={`flex items-center gap-1.5 px-2 py-1 rounded border ${s.bg} ${s.text} ${s.border}`}>
+            ★ {s.label}
           </span>
         ))}
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-full bg-amber-500" />Milestone
-        </span>
+        {Object.entries(OWNER_COLORS).map(([name, c]) => (
+          <span key={name} className="flex items-center gap-1.5 text-slate-400">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.hex }} />{name} tasks
+          </span>
+        ))}
       </div>
 
+      {/* Off-track / at-risk alert banner */}
+      {(overdueMilestones.length > 0 || atRiskMilestones.length > 0) && (
+        <div className="mb-4 bg-red-950 border border-red-800 rounded-xl p-3">
+          <p className="text-red-300 text-sm font-bold mb-2">⚠ Attention Needed</p>
+          <div className="flex flex-wrap gap-2">
+            {overdueMilestones.map(m => (
+              <button key={m.id} onClick={() => { setSelectedDay(m.date); openEditMilestone(m); }}
+                className="text-xs bg-red-900 border border-red-700 text-red-200 px-2 py-1 rounded hover:bg-red-800 transition-colors">
+                ★ {m.title} — {formatDate(m.date)}
+              </button>
+            ))}
+            {atRiskMilestones.map(m => (
+              <button key={m.id} onClick={() => { setSelectedDay(m.date); openEditMilestone(m); }}
+                className="text-xs bg-yellow-900 border border-yellow-700 text-yellow-200 px-2 py-1 rounded hover:bg-yellow-800 transition-colors">
+                ★ {m.title} — {formatDate(m.date)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        {/* Calendar grids */}
-        <div className={`${upcomingMilestones.length > 0 ? "xl:col-span-3" : "xl:col-span-4"}`}>
+        {/* Calendar grid */}
+        <div className="xl:col-span-3">
           {viewMode === "4-Month" && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[0,1,2,3].map(offset => {
-                let m = anchor.month + offset;
-                let y = anchor.year;
+                let m = anchor.month + offset, y = anchor.year;
                 while (m > 11) { m -= 12; y++; }
                 return (
                   <div key={offset} className="bg-slate-800/60 border border-slate-700 rounded-xl p-3">
@@ -1840,42 +2017,66 @@ function CalendarView({ tasks, milestones, onAddMilestone, onDeleteMilestone, on
               })}
             </div>
           )}
-
           {viewMode === "Month" && (
             <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-4">
               <MonthGrid year={anchor.year} month={anchor.month} mini={false} />
             </div>
           )}
-
           {viewMode === "Week" && (
             <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-4">
               <WeekGrid />
             </div>
           )}
-
           <DayPanel />
         </div>
 
-        {/* Upcoming milestones sidebar */}
-        {upcomingMilestones.length > 0 && (
-          <div className="xl:col-span-1">
-            <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 sticky top-20">
-              <h3 className="text-sm font-bold text-amber-400 uppercase tracking-wide mb-3">★ Upcoming Milestones</h3>
-              <div className="space-y-2">
-                {upcomingMilestones.map(m => (
-                  <div key={m.id} className="flex items-start gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white text-xs font-semibold truncate">{m.title}</p>
-                      <p className="text-amber-400 text-xs">{formatDate(m.date)}</p>
-                      {m.owner && <OwnerBadge owner={m.owner} />}
-                    </div>
-                    <button onClick={() => onDeleteMilestone(m.id)} className="text-slate-600 hover:text-red-400 text-xs shrink-0">✕</button>
-                  </div>
-                ))}
-              </div>
+        {/* Milestone tracker sidebar */}
+        <div className="xl:col-span-1 space-y-4">
+          {overdueMilestones.length > 0 && (
+            <div className="bg-red-950/60 border border-red-800 rounded-xl p-3">
+              <h3 className="text-xs font-bold text-red-400 uppercase tracking-wide mb-2">🔴 Off Track</h3>
+              {overdueMilestones.map(m => (
+                <button key={m.id} onClick={() => { setSelectedDay(m.date); openEditMilestone(m); }}
+                  className="w-full text-left mb-1.5 last:mb-0">
+                  <p className="text-red-200 text-xs font-semibold leading-snug">{m.title}</p>
+                  <p className="text-red-400 text-xs">{formatDate(m.date)}</p>
+                </button>
+              ))}
             </div>
-          </div>
-        )}
+          )}
+          {atRiskMilestones.length > 0 && (
+            <div className="bg-yellow-950/60 border border-yellow-800 rounded-xl p-3">
+              <h3 className="text-xs font-bold text-yellow-400 uppercase tracking-wide mb-2">🟡 At Risk</h3>
+              {atRiskMilestones.map(m => (
+                <button key={m.id} onClick={() => { setSelectedDay(m.date); openEditMilestone(m); }}
+                  className="w-full text-left mb-1.5 last:mb-0">
+                  <p className="text-yellow-200 text-xs font-semibold leading-snug">{m.title}</p>
+                  <p className="text-yellow-400 text-xs">{formatDate(m.date)}</p>
+                </button>
+              ))}
+            </div>
+          )}
+          {upcomingMilestones.length > 0 && (
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-3">
+              <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wide mb-2">🟢 On Track</h3>
+              {upcomingMilestones.slice(0, 8).map(m => {
+                const es = effectiveMilestoneStatus(m);
+                const st = MILESTONE_STATUSES[es];
+                return (
+                  <button key={m.id} onClick={() => { setSelectedDay(m.date); openEditMilestone(m); }}
+                    className="w-full text-left mb-2 last:mb-0">
+                    <p className="text-slate-200 text-xs font-semibold leading-snug">{m.title}</p>
+                    <p className={`text-xs ${st.text}`}>{formatDate(m.date)}</p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <button onClick={() => openNewMilestone(today)}
+            className="w-full text-xs border border-dashed border-slate-600 text-slate-400 hover:border-amber-600 hover:text-amber-400 rounded-xl py-2 transition-colors">
+            + Add Milestone
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -2067,7 +2268,11 @@ function App() {
   const [activeTab, setActiveTab] = useState("dashboard"); // dashboard | tasks | calendar | notes
   const [notes, setNotes] = useState([]);
   const [milestones, setMilestones] = useState(() => {
-    try { const s = localStorage.getItem("flmove_milestones"); return s ? JSON.parse(s) : []; } catch { return []; }
+    try {
+      const s = localStorage.getItem("flmove_milestones");
+      if (s) { const parsed = JSON.parse(s); if (parsed.length > 0) return parsed; }
+    } catch {}
+    return generateSeedMilestones(); // seed on first load
   });
   const [notesLoading, setNotesLoading] = useState(false);
 
@@ -2099,9 +2304,13 @@ function App() {
         setActivePathway(cloudData.activePathway);
         try { localStorage.setItem("flmove_activePathway", cloudData.activePathway); } catch {}
       }
-      if (cloudData && cloudData.milestones) {
+      if (cloudData && cloudData.milestones && cloudData.milestones.length > 0) {
         setMilestones(cloudData.milestones);
         try { localStorage.setItem("flmove_milestones", JSON.stringify(cloudData.milestones)); } catch {}
+      } else if (!cloudData || !cloudData.milestones) {
+        // First time loading — seed milestones into cloud
+        const seeded = generateSeedMilestones();
+        setMilestones(seeded);
       }
       setSyncStatus("synced");
     });
@@ -2200,6 +2409,10 @@ function App() {
     setMilestones(prev => prev.filter(m => m.id !== id));
   }
 
+  function handleUpdateMilestone(updated) {
+    setMilestones(prev => prev.map(m => m.id === updated.id ? { ...m, ...updated } : m));
+  }
+
   function handleReset() {
     const freshTasks    = generateSeedTasks();
     const freshPathways = PATHWAYS;
@@ -2207,7 +2420,7 @@ function App() {
     setTasks(freshTasks);
     setPathways(freshPathways);
     setActivePathway(freshPathway);
-    setMilestones([]);
+    setMilestones(generateSeedMilestones());
     // Also wipe the cloud store so all devices get the reset
     fetch("/api/data", { method: "DELETE", credentials: "same-origin" }).catch(() => {});
   }
@@ -2310,7 +2523,8 @@ function App() {
             milestones={milestones}
             onAddMilestone={handleAddMilestone}
             onDeleteMilestone={handleDeleteMilestone}
-            onEditTask={t => {/* open editor — handled inside TaskSection, pass-through here */}}
+            onUpdateMilestone={handleUpdateMilestone}
+            onEditTask={t => {}}
           />
         ) : activeTab === "notes" ? (
           <NotesLog
