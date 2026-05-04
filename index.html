@@ -1394,9 +1394,40 @@ function RolloverHistoryModal({ tasks, onClose }) {
   );
 }
 
+// ─── CLOUD SYNC ───────────────────────────────────────────────────────────────
+// Saves to Cloudflare KV via /api/data so all devices stay in sync.
+// localStorage is used only as a fast cache for instant load on return visits.
+// A debounced save fires 1.5 seconds after the last change to avoid hammering the API.
+
+const SYNC_DEBOUNCE_MS = 1500;
+
+async function loadFromCloud() {
+  try {
+    const res = await fetch("/api/data", { credentials: "same-origin" });
+    if (!res.ok) return null;
+    return await res.json(); // null means no cloud data yet
+  } catch {
+    return null;
+  }
+}
+
+async function saveToCloud(state) {
+  try {
+    await fetch("/api/data", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(state),
+    });
+  } catch {
+    // silent — localStorage cache still has the data
+  }
+}
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 
 function App() {
+  // Boot from localStorage immediately so the UI is instant, then hydrate from cloud
   const [tasks, setTasks] = useState(() => {
     try {
       const saved = localStorage.getItem("flmove_tasks");
@@ -1420,17 +1451,60 @@ function App() {
   const [editingPathwayId, setEditingPathwayId] = useState(null);
   const [showRolloverModal, setShowRolloverModal] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard"); // dashboard | tasks
+  const [syncStatus, setSyncStatus] = useState("loading"); // loading | synced | saving | error
 
-  // Persist to localStorage
+  // On mount: pull latest state from cloud (overrides localStorage cache)
+  useEffect(() => {
+    setSyncStatus("loading");
+    loadFromCloud().then(cloudData => {
+      if (cloudData && cloudData.tasks) {
+        setTasks(cloudData.tasks);
+        try { localStorage.setItem("flmove_tasks", JSON.stringify(cloudData.tasks)); } catch {}
+      }
+      if (cloudData && cloudData.pathways) {
+        setPathways(cloudData.pathways);
+        try { localStorage.setItem("flmove_pathways", JSON.stringify(cloudData.pathways)); } catch {}
+      }
+      if (cloudData && cloudData.activePathway) {
+        setActivePathway(cloudData.activePathway);
+        try { localStorage.setItem("flmove_activePathway", cloudData.activePathway); } catch {}
+      }
+      setSyncStatus("synced");
+    });
+  }, []);
+
+  // Debounced cloud save — fires 1.5s after last change
+  const saveTimerRef = useRef(null);
+
+  // Mirror every state change to localStorage immediately (fast cache)
+  // and schedule a debounced cloud save
   useEffect(() => {
     try { localStorage.setItem("flmove_tasks", JSON.stringify(tasks)); } catch {}
+    scheduleSave();
   }, [tasks]);
+
   useEffect(() => {
     try { localStorage.setItem("flmove_pathways", JSON.stringify(pathways)); } catch {}
+    scheduleSave();
   }, [pathways]);
+
   useEffect(() => {
     try { localStorage.setItem("flmove_activePathway", activePathway); } catch {}
+    scheduleSave();
   }, [activePathway]);
+
+  function scheduleSave() {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    setSyncStatus("saving");
+    saveTimerRef.current = setTimeout(() => {
+      const state = {
+        tasks: JSON.parse(localStorage.getItem("flmove_tasks") || "[]"),
+        pathways: JSON.parse(localStorage.getItem("flmove_pathways") || "[]"),
+        activePathway: localStorage.getItem("flmove_activePathway") || "keep-retro-sell-venetian",
+      };
+      saveToCloud(state).then(() => setSyncStatus("synced")).catch(() => setSyncStatus("error"));
+    }, SYNC_DEBOUNCE_MS);
+  }
 
   // ROLLOVER LOGIC: Run on mount to catch overdue tasks
   useEffect(() => {
@@ -1479,9 +1553,14 @@ function App() {
   }
 
   function handleReset() {
-    setTasks(generateSeedTasks());
-    setPathways(PATHWAYS);
-    setActivePathway("keep-retro-sell-venetian");
+    const freshTasks    = generateSeedTasks();
+    const freshPathways = PATHWAYS;
+    const freshPathway  = "keep-retro-sell-venetian";
+    setTasks(freshTasks);
+    setPathways(freshPathways);
+    setActivePathway(freshPathway);
+    // Also wipe the cloud store so all devices get the reset
+    fetch("/api/data", { method: "DELETE", credentials: "same-origin" }).catch(() => {});
   }
 
   function handleEditPathway(id) {
@@ -1533,6 +1612,18 @@ function App() {
                 onClick={() => setShowRolloverModal(true)}
                 className="text-xs text-slate-400 hover:text-white px-2 py-1.5 rounded border border-slate-700 hover:border-slate-500"
               >↻ Rollover Log</button>
+              {/* Cloud sync indicator */}
+              <span className={`text-xs px-2 py-1 rounded border flex items-center gap-1 ${
+                syncStatus === "synced"  ? "text-emerald-400 border-emerald-900 bg-emerald-950" :
+                syncStatus === "saving"  ? "text-yellow-400 border-yellow-900 bg-yellow-950" :
+                syncStatus === "loading" ? "text-slate-400 border-slate-700 bg-slate-900" :
+                                           "text-red-400 border-red-900 bg-red-950"
+              }`}>
+                {syncStatus === "synced"  && "☁ Synced"}
+                {syncStatus === "saving"  && "↑ Saving…"}
+                {syncStatus === "loading" && "↓ Loading…"}
+                {syncStatus === "error"   && "⚠ Sync error"}
+              </span>
               <span className="text-xs text-slate-500">Today: {formatDate(todayISO())}</span>
             </div>
           </div>
