@@ -1,0 +1,1658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FL MOVE — Bunnell Family Transition Dashboard</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    * { font-family: 'Inter', system-ui, sans-serif; box-sizing: border-box; }
+    body { margin: 0; background: #0f172a; color: #f1f5f9; }
+    .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: #1e293b; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    .transition-all { transition: all 0.2s ease; }
+    .section-content { overflow: hidden; transition: max-height 0.3s ease; }
+    .modal-overlay { animation: fadeIn 0.15s ease; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .card-hover:hover { transform: translateY(-1px); box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
+    .drag-handle { cursor: grab; }
+    .drag-handle:active { cursor: grabbing; }
+    input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+    select option { background: #1e293b; color: #f1f5f9; }
+    .light-mode body { background: #f8fafc; color: #0f172a; }
+    .pathway-tab { transition: all 0.15s ease; }
+    .overdue-pulse { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
+  </style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            slate: { 950: '#020617' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback, useMemo, useReducer, useRef } = React;
+
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
+
+const PATHWAYS = [
+  {
+    id: "sell-retro",
+    label: "Sell / Close Retro",
+    subtitle: "Exit RetroMotion creative business",
+    focus: "Reduce Justin's creative-business debt. Prioritize W2 transition, client wrap-up, asset liquidation."
+  },
+  {
+    id: "sell-venetian",
+    label: "Sell / Close Venetian",
+    subtitle: "Exit lounge, keep creative platform",
+    focus: "Exit lounge/beverages, keep RetroMotion as portable creative platform."
+  },
+  {
+    id: "keep-retro-sell-venetian",
+    label: "Keep Retro + Close Venetian",
+    subtitle: "⭐ PREFERRED BASE CASE",
+    focus: "Exit Venetian, keep RetroMotion lean, pursue Anna's FL role, rebuild Justin around W2 + freelance."
+  },
+  {
+    id: "sell-both",
+    label: "Sell / Close Both",
+    subtitle: "Maximum simplification",
+    focus: "Maximum simplification. Household protection, Anna's job, Justin's W2 pivot, debt/legal clarity."
+  }
+];
+
+const OWNERS = ["Justin", "Anna", "Both", "External Advisor"];
+const FREQUENCIES = ["Daily", "Weekly", "Monthly", "One-time"];
+const CATEGORIES = [
+  "Florida Relocation", "Anna Career", "Justin Career",
+  "RetroMotion", "Venetian Soda Lounge", "Venetian Beverages",
+  "Vermont Home", "Florida Housing", "Legal / Debt / CPA",
+  "Kids / Schools", "Budget / Cash Flow", "Health / Family / Life Admin"
+];
+const PRIORITIES = ["Critical", "High", "Medium", "Low"];
+const STATUSES = ["Not Started", "In Progress", "Blocked", "Done"];
+
+const OWNER_COLORS = {
+  Justin: { bg: "bg-blue-600", text: "text-blue-100", border: "border-blue-500", hex: "#3b82f6" },
+  Anna: { bg: "bg-pink-600", text: "text-pink-100", border: "border-pink-500", hex: "#ec4899" },
+  Both: { bg: "bg-purple-600", text: "text-purple-100", border: "border-purple-500", hex: "#8b5cf6" },
+  "External Advisor": { bg: "bg-gray-600", text: "text-gray-100", border: "border-gray-500", hex: "#6b7280" }
+};
+
+const PRIORITY_COLORS = {
+  Critical: { bg: "bg-red-600", text: "text-red-100", hex: "#ef4444" },
+  High: { bg: "bg-orange-500", text: "text-orange-100", hex: "#f97316" },
+  Medium: { bg: "bg-yellow-500", text: "text-yellow-100", hex: "#eab308" },
+  Low: { bg: "bg-green-600", text: "text-green-100", hex: "#22c55e" }
+};
+
+const STATUS_COLORS = {
+  "Not Started": "bg-slate-600 text-slate-200",
+  "In Progress": "bg-sky-600 text-sky-100",
+  "Blocked": "bg-red-700 text-red-100",
+  "Done": "bg-emerald-700 text-emerald-100"
+};
+
+// ─── UTILITIES ────────────────────────────────────────────────────────────────
+
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+function todayISO() {
+  return new Date().toISOString().split("T")[0];
+}
+
+function tomorrowISO() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().split("T")[0];
+}
+
+function formatDate(iso) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${m}/${d}/${y}`;
+}
+
+function isOverdue(dueDate) {
+  if (!dueDate) return false;
+  return dueDate < todayISO();
+}
+
+function isDueThisWeek(dueDate) {
+  if (!dueDate) return false;
+  const today = new Date();
+  const due = new Date(dueDate);
+  const diff = (due - today) / (1000 * 60 * 60 * 24);
+  return diff >= 0 && diff <= 7;
+}
+
+// ─── SEED DATA ────────────────────────────────────────────────────────────────
+
+function createTask(overrides) {
+  const base = {
+    id: genId(),
+    title: "",
+    description: "",
+    owner: "Both",
+    frequency: "Weekly",
+    pathways: ["sell-retro", "sell-venetian", "keep-retro-sell-venetian", "sell-both"],
+    category: "Florida Relocation",
+    priority: "Medium",
+    status: "Not Started",
+    dueDate: null,
+    originalDueDate: null,
+    completionDate: null,
+    notes: "",
+    dependencies: [],
+    subtasks: [],
+    attachments: "",
+    sortOrder: 0,
+    pathwaySortOrder: {},
+    rolloverCount: 0,
+    rolloverHistory: [],
+    autoRollover: true,
+    manuallyOrdered: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  return { ...base, ...overrides, id: genId() };
+}
+
+function generateSeedTasks() {
+  const ALL = ["sell-retro", "sell-venetian", "keep-retro-sell-venetian", "sell-both"];
+  const tasks = [];
+  let so = 0;
+
+  // ── DAILY ──
+  const daily = [
+    { title: "Review Today's Top 3 Priorities", owner: "Both", priority: "Critical", category: "Florida Relocation", pathways: ALL },
+    { title: "Update Cash Position & Urgent Bills", owner: "Justin", priority: "Critical", category: "Budget / Cash Flow", pathways: ALL },
+    { title: "Check Anna Florida Job Leads", owner: "Anna", priority: "High", category: "Anna Career", pathways: ALL },
+    { title: "Check Justin W2 / Freelance Opportunities", owner: "Justin", priority: "High", category: "Justin Career", pathways: ["sell-retro", "keep-retro-sell-venetian", "sell-both"] },
+    { title: "Complete One Relocation Action", owner: "Both", priority: "High", category: "Florida Relocation", pathways: ALL },
+    { title: "Complete One Business-Exit Action", owner: "Both", priority: "High", category: "RetroMotion", pathways: ALL },
+    { title: "Complete One Family / School / Housing Action", owner: "Both", priority: "Medium", category: "Kids / Schools", pathways: ALL },
+    { title: "Clear Blocked Items or Identify Next Decision", owner: "Both", priority: "High", category: "Florida Relocation", pathways: ALL },
+    { title: "Record End-of-Day Notes", owner: "Both", priority: "Medium", category: "Health / Family / Life Admin", pathways: ALL }
+  ];
+  daily.forEach((t, i) => tasks.push(createTask({ ...t, frequency: "Daily", sortOrder: i })));
+
+  // ── WEEKLY ──
+  const weekly = [
+    { title: "Review Florida Relocation Timeline", owner: "Both", priority: "Critical", category: "Florida Relocation", pathways: ALL },
+    { title: "Review Anna Job Pipeline", owner: "Anna", priority: "Critical", category: "Anna Career", pathways: ALL },
+    { title: "Review Justin Income Pipeline", owner: "Justin", priority: "High", category: "Justin Career", pathways: ["sell-retro", "keep-retro-sell-venetian", "sell-both"] },
+    { title: "Review RetroMotion Receivables, Debt & Active Projects", owner: "Justin", priority: "High", category: "RetroMotion", pathways: ["sell-retro", "keep-retro-sell-venetian"] },
+    { title: "Review Venetian Soda Lounge Sale/Close Progress", owner: "Both", priority: "High", category: "Venetian Soda Lounge", pathways: ["sell-venetian", "keep-retro-sell-venetian", "sell-both"] },
+    { title: "Review Venetian Beverages Debt/Liability Status", owner: "Justin", priority: "High", category: "Venetian Beverages", pathways: ["sell-venetian", "keep-retro-sell-venetian", "sell-both"] },
+    { title: "Review Vermont Home Strategy", owner: "Both", priority: "High", category: "Vermont Home", pathways: ALL },
+    { title: "Review Legal / CPA / Bankruptcy Questions", owner: "Both", priority: "Critical", category: "Legal / Debt / CPA", pathways: ALL },
+    { title: "Review Florida Housing & Rental Options", owner: "Both", priority: "High", category: "Florida Housing", pathways: ALL },
+    { title: "Review School Zones & Enrollment Requirements", owner: "Both", priority: "Medium", category: "Kids / Schools", pathways: ALL },
+    { title: "Update Family Budget Forecast", owner: "Both", priority: "Critical", category: "Budget / Cash Flow", pathways: ALL },
+    { title: "Decide Next Week's Top 5 Priorities", owner: "Both", priority: "High", category: "Florida Relocation", pathways: ALL }
+  ];
+  weekly.forEach((t, i) => tasks.push(createTask({ ...t, frequency: "Weekly", sortOrder: i })));
+
+  // ── MONTHLY ──
+  const monthly = [
+    { title: "Update Full Household Net Worth / Debt Picture", owner: "Both", priority: "Critical", category: "Budget / Cash Flow", pathways: ALL },
+    { title: "Update Business Balance Sheet Snapshot", owner: "Justin", priority: "High", category: "RetroMotion", pathways: ALL },
+    { title: "Review Whether Selected Pathway Still Makes Sense", owner: "Both", priority: "Critical", category: "Florida Relocation", pathways: ALL },
+    { title: "Review Florida Move Readiness", owner: "Both", priority: "Critical", category: "Florida Relocation", pathways: ALL },
+    { title: "Review Cash Reserves & Debt Exposure", owner: "Both", priority: "Critical", category: "Legal / Debt / CPA", pathways: ALL },
+    { title: "Review Whether Renting First Remains Preferred", owner: "Both", priority: "High", category: "Florida Housing", pathways: ALL },
+    { title: "Review Anna Job-Compensation Targets", owner: "Anna", priority: "High", category: "Anna Career", pathways: ALL },
+    { title: "Review Justin W2 Transition Progress", owner: "Justin", priority: "High", category: "Justin Career", pathways: ["sell-retro", "keep-retro-sell-venetian", "sell-both"] },
+    { title: "Review Business Sale/Closure Timeline", owner: "Both", priority: "High", category: "RetroMotion", pathways: ALL },
+    { title: "Review Family Stress/Load & Adjust Pace", owner: "Both", priority: "High", category: "Health / Family / Life Admin", pathways: ALL },
+    { title: "Archive Completed Tasks & Export Monthly Report", owner: "Both", priority: "Medium", category: "Florida Relocation", pathways: ALL }
+  ];
+  monthly.forEach((t, i) => tasks.push(createTask({ ...t, frequency: "Monthly", sortOrder: i })));
+
+  // ── PATHWAY-SPECIFIC ONE-TIME ──
+  const oneTime = [
+    // Pathway 1
+    { title: "Build RetroMotion Asset List", owner: "Justin", priority: "Critical", category: "RetroMotion", pathways: ["sell-retro"] },
+    { title: "List Active Contracts & Client Obligations", owner: "Justin", priority: "Critical", category: "RetroMotion", pathways: ["sell-retro"] },
+    { title: "Identify Transferable Brand/IP/Assets", owner: "Justin", priority: "High", category: "RetroMotion", pathways: ["sell-retro"] },
+    { title: "Review RetroMotion Liabilities", owner: "Justin", priority: "Critical", category: "Legal / Debt / CPA", pathways: ["sell-retro"] },
+    { title: "Speak with CPA/Attorney About Closure or Sale", owner: "Both", priority: "Critical", category: "Legal / Debt / CPA", pathways: ["sell-retro"] },
+    { title: "Create Client Transition Plan", owner: "Justin", priority: "High", category: "RetroMotion", pathways: ["sell-retro"] },
+    { title: "Build Justin W2 Job Search Plan", owner: "Justin", priority: "Critical", category: "Justin Career", pathways: ["sell-retro"] },
+    { title: "Preserve Usable Portfolio Materials", owner: "Justin", priority: "Medium", category: "RetroMotion", pathways: ["sell-retro"] },
+    // Pathway 2
+    { title: "Prepare Venetian Soda Lounge Sale Package", owner: "Both", priority: "Critical", category: "Venetian Soda Lounge", pathways: ["sell-venetian"] },
+    { title: "Create Venetian Asset Inventory", owner: "Both", priority: "High", category: "Venetian Soda Lounge", pathways: ["sell-venetian"] },
+    { title: "Identify Buyer Types for Venetian", owner: "Both", priority: "High", category: "Venetian Soda Lounge", pathways: ["sell-venetian"] },
+    { title: "Clean Up Venetian Books & Tax Obligations", owner: "Justin", priority: "Critical", category: "Legal / Debt / CPA", pathways: ["sell-venetian"] },
+    { title: "Decide Sell vs Close Threshold", owner: "Both", priority: "Critical", category: "Venetian Soda Lounge", pathways: ["sell-venetian"] },
+    { title: "Create Venetian Closure Checklist", owner: "Both", priority: "High", category: "Venetian Soda Lounge", pathways: ["sell-venetian"] },
+    { title: "Manage Staff/Vendor Communication", owner: "Both", priority: "High", category: "Venetian Soda Lounge", pathways: ["sell-venetian"] },
+    { title: "Resolve Venetian Beverages Remaining Liabilities", owner: "Justin", priority: "Critical", category: "Venetian Beverages", pathways: ["sell-venetian"] },
+    { title: "Keep RetroMotion Lean & Portable", owner: "Justin", priority: "High", category: "RetroMotion", pathways: ["sell-venetian"] },
+    // Pathway 3 (preferred)
+    { title: "Stabilize or Close Venetian First", owner: "Both", priority: "Critical", category: "Venetian Soda Lounge", pathways: ["keep-retro-sell-venetian"] },
+    { title: "Define RetroMotion Low-Overhead Operating Model", owner: "Justin", priority: "Critical", category: "RetroMotion", pathways: ["keep-retro-sell-venetian"] },
+    { title: "Build Justin Florida W2 Target List", owner: "Justin", priority: "Critical", category: "Justin Career", pathways: ["keep-retro-sell-venetian"] },
+    { title: "Build Anna Florida Healthcare Leadership Pipeline", owner: "Anna", priority: "Critical", category: "Anna Career", pathways: ["keep-retro-sell-venetian"] },
+    { title: "Protect Vermont Home Equity", owner: "Both", priority: "Critical", category: "Vermont Home", pathways: ["keep-retro-sell-venetian"] },
+    { title: "Build Florida Rental-First Plan", owner: "Both", priority: "High", category: "Florida Housing", pathways: ["keep-retro-sell-venetian"] },
+    { title: "Update Debt Repayment Strategy", owner: "Both", priority: "Critical", category: "Legal / Debt / CPA", pathways: ["keep-retro-sell-venetian"] },
+    { title: "Reduce Operational Drag Before Relocation", owner: "Both", priority: "High", category: "RetroMotion", pathways: ["keep-retro-sell-venetian"] },
+    // Pathway 4
+    { title: "Create Full Business Wind-Down Master Checklist", owner: "Both", priority: "Critical", category: "RetroMotion", pathways: ["sell-both"] },
+    { title: "Review All Liabilities with Attorney/CPA", owner: "Both", priority: "Critical", category: "Legal / Debt / CPA", pathways: ["sell-both"] },
+    { title: "Identify Business-Only vs Personal Debt", owner: "Both", priority: "Critical", category: "Legal / Debt / CPA", pathways: ["sell-both"] },
+    { title: "Protect Vermont Home Equity Before Sale", owner: "Both", priority: "Critical", category: "Vermont Home", pathways: ["sell-both"] },
+    { title: "Build Florida Rental Bridge Budget", owner: "Both", priority: "Critical", category: "Budget / Cash Flow", pathways: ["sell-both"] },
+    { title: "Build Justin W2 Transition Roadmap", owner: "Justin", priority: "Critical", category: "Justin Career", pathways: ["sell-both"] },
+    { title: "Archive/Sell/Liquidate Business Assets", owner: "Both", priority: "High", category: "RetroMotion", pathways: ["sell-both"] },
+    { title: "Close Accounts, Licenses, Payroll, Taxes, Vendors", owner: "Both", priority: "High", category: "Legal / Debt / CPA", pathways: ["sell-both"] }
+  ];
+  oneTime.forEach((t, i) => tasks.push(createTask({ ...t, frequency: "One-time", sortOrder: i })));
+
+  return tasks;
+}
+
+// ─── ROLLOVER LOGIC ────────────────────────────────────────────────────────────
+// Called on app load and conceptually at midnight.
+// For each incomplete task with a past dueDate and autoRollover=true:
+//   - Save originalDueDate if not yet set
+//   - Increment rolloverCount
+//   - Add entry to rolloverHistory
+//   - Set dueDate to today
+//   - If rolloverCount >= 3: task gets a warning badge
+
+function runRolloverCheck(tasks) {
+  const today = todayISO();
+  return tasks.map(task => {
+    if (
+      task.status !== "Done" &&
+      task.dueDate &&
+      task.dueDate < today &&
+      task.autoRollover
+    ) {
+      const fromDate = task.dueDate;
+      const newTask = {
+        ...task,
+        originalDueDate: task.originalDueDate || fromDate,
+        rolloverCount: (task.rolloverCount || 0) + 1,
+        rolloverHistory: [
+          ...(task.rolloverHistory || []),
+          { date: today, fromDate, toDate: today }
+        ],
+        dueDate: today,
+        updatedAt: new Date().toISOString()
+      };
+      return newTask;
+    }
+    return task;
+  });
+}
+
+// ─── PATHWAY PRIORITY LOGIC ───────────────────────────────────────────────────
+// When the active pathway changes:
+//   1. Tasks with pathwaySortOrder[pathwayId] use that value for sorting.
+//   2. Tasks whose pathways[] includes the active pathway get boosted (tier 0).
+//   3. Tasks NOT in the active pathway's list get deprioritized (tier 1, lower opacity).
+//   4. manuallyOrdered tasks keep position unless "Reset to Recommended Order" is clicked.
+//   5. "Reset to Recommended Order" clears manuallyOrdered flags and re-applies pathway sort.
+
+function sortTasksForPathway(tasks, pathwayId) {
+  const PRIORITY_WEIGHT = { Critical: 0, High: 1, Medium: 2, Low: 3 };
+  return [...tasks].sort((a, b) => {
+    if (a.manuallyOrdered && b.manuallyOrdered) {
+      const aOrder = a.pathwaySortOrder?.[pathwayId] ?? a.sortOrder;
+      const bOrder = b.pathwaySortOrder?.[pathwayId] ?? b.sortOrder;
+      return aOrder - bOrder;
+    }
+    const aInPathway = a.pathways.includes(pathwayId);
+    const bInPathway = b.pathways.includes(pathwayId);
+    if (aInPathway && !bInPathway) return -1;
+    if (!aInPathway && bInPathway) return 1;
+    const aPriority = PRIORITY_WEIGHT[a.priority] ?? 4;
+    const bPriority = PRIORITY_WEIGHT[b.priority] ?? 4;
+    if (aPriority !== bPriority) return aPriority - bPriority;
+    const aOrder = a.pathwaySortOrder?.[pathwayId] ?? a.sortOrder;
+    const bOrder = b.pathwaySortOrder?.[pathwayId] ?? b.sortOrder;
+    return aOrder - bOrder;
+  });
+}
+
+// ─── READINESS SCORE ──────────────────────────────────────────────────────────
+
+function calcReadinessScore(tasks) {
+  const done = (cats) => tasks.filter(t => cats.includes(t.category) && t.status === "Done").length;
+  const total = (cats) => Math.max(1, tasks.filter(t => cats.includes(t.category)).length);
+
+  const annaScore = (done(["Anna Career"]) / total(["Anna Career"])) * 15;
+  const justinScore = (done(["Justin Career"]) / total(["Justin Career"])) * 10;
+  const bizScore = (done(["RetroMotion", "Venetian Soda Lounge", "Venetian Beverages"]) / total(["RetroMotion", "Venetian Soda Lounge", "Venetian Beverages"])) * 20;
+  const legalScore = (done(["Legal / Debt / CPA"]) / total(["Legal / Debt / CPA"])) * 15;
+  const vtScore = (done(["Vermont Home"]) / total(["Vermont Home"])) * 10;
+  const flScore = (done(["Florida Housing"]) / total(["Florida Housing"])) * 10;
+  const kidsScore = (done(["Kids / Schools"]) / total(["Kids / Schools"])) * 5;
+  const cashScore = (done(["Budget / Cash Flow"]) / total(["Budget / Cash Flow"])) * 10;
+  const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const recentDone = tasks.filter(t => t.completionDate && new Date(t.completionDate) >= sevenDaysAgo).length;
+  const momentumScore = Math.min(5, (recentDone / Math.max(1, tasks.length)) * 100);
+
+  const total_score = Math.round(annaScore + justinScore + bizScore + legalScore + vtScore + flScore + kidsScore + cashScore + momentumScore);
+  return Math.min(100, Math.max(0, total_score));
+}
+
+function scoreColor(score) {
+  if (score >= 80) return "text-green-400";
+  if (score >= 60) return "text-yellow-400";
+  if (score >= 40) return "text-orange-400";
+  return "text-red-400";
+}
+
+function scoreBarColor(score) {
+  if (score >= 80) return "bg-green-500";
+  if (score >= 60) return "bg-yellow-500";
+  if (score >= 40) return "bg-orange-500";
+  return "bg-red-500";
+}
+
+// ─── BADGE COMPONENTS ─────────────────────────────────────────────────────────
+
+function Badge({ children, className = "" }) {
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${className}`}>{children}</span>;
+}
+
+function OwnerBadge({ owner }) {
+  const c = OWNER_COLORS[owner] || OWNER_COLORS["External Advisor"];
+  return <Badge className={`${c.bg} ${c.text}`}>{owner}</Badge>;
+}
+
+function PriorityBadge({ priority }) {
+  const c = PRIORITY_COLORS[priority] || PRIORITY_COLORS.Low;
+  return <Badge className={`${c.bg} ${c.text}`}>{priority}</Badge>;
+}
+
+function StatusBadge({ status }) {
+  return <Badge className={STATUS_COLORS[status] || "bg-slate-600 text-slate-200"}>{status}</Badge>;
+}
+
+// ─── FILTER BAR ───────────────────────────────────────────────────────────────
+
+function FilterBar({ filters, onChange }) {
+  return (
+    <div className="flex flex-wrap gap-2 items-center">
+      <select
+        value={filters.owner || ""}
+        onChange={e => onChange({ ...filters, owner: e.target.value })}
+        className="bg-slate-700 border border-slate-600 text-slate-200 text-xs rounded px-2 py-1"
+      >
+        <option value="">All Owners</option>
+        {OWNERS.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+      <select
+        value={filters.category || ""}
+        onChange={e => onChange({ ...filters, category: e.target.value })}
+        className="bg-slate-700 border border-slate-600 text-slate-200 text-xs rounded px-2 py-1"
+      >
+        <option value="">All Categories</option>
+        {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+      </select>
+      <select
+        value={filters.status || ""}
+        onChange={e => onChange({ ...filters, status: e.target.value })}
+        className="bg-slate-700 border border-slate-600 text-slate-200 text-xs rounded px-2 py-1"
+      >
+        <option value="">All Statuses</option>
+        {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+      </select>
+      <select
+        value={filters.priority || ""}
+        onChange={e => onChange({ ...filters, priority: e.target.value })}
+        className="bg-slate-700 border border-slate-600 text-slate-200 text-xs rounded px-2 py-1"
+      >
+        <option value="">All Priorities</option>
+        {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+      </select>
+      <input
+        type="text"
+        placeholder="Search..."
+        value={filters.search || ""}
+        onChange={e => onChange({ ...filters, search: e.target.value })}
+        className="bg-slate-700 border border-slate-600 text-slate-200 text-xs rounded px-2 py-1 min-w-[120px]"
+      />
+      {(filters.owner || filters.category || filters.status || filters.priority || filters.search) && (
+        <button
+          onClick={() => onChange({})}
+          className="text-xs text-slate-400 hover:text-white underline"
+        >Clear</button>
+      )}
+    </div>
+  );
+}
+
+// ─── SUBTASK EDITOR ───────────────────────────────────────────────────────────
+
+function SubtaskEditor({ subtasks, onChange }) {
+  const [newTitle, setNewTitle] = useState("");
+  function add() {
+    if (!newTitle.trim()) return;
+    onChange([...subtasks, { id: genId(), title: newTitle.trim(), done: false }]);
+    setNewTitle("");
+  }
+  function toggle(id) {
+    onChange(subtasks.map(s => s.id === id ? { ...s, done: !s.done } : s));
+  }
+  function remove(id) {
+    onChange(subtasks.filter(s => s.id !== id));
+  }
+  return (
+    <div>
+      {subtasks.map(s => (
+        <div key={s.id} className="flex items-center gap-2 py-1">
+          <input type="checkbox" checked={s.done} onChange={() => toggle(s.id)} className="rounded" />
+          <span className={`flex-1 text-sm ${s.done ? "line-through text-slate-500" : "text-slate-200"}`}>{s.title}</span>
+          <button onClick={() => remove(s.id)} className="text-red-400 hover:text-red-300 text-xs">✕</button>
+        </div>
+      ))}
+      <div className="flex gap-2 mt-2">
+        <input
+          value={newTitle}
+          onChange={e => setNewTitle(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && add()}
+          placeholder="Add subtask..."
+          className="flex-1 bg-slate-700 border border-slate-600 text-slate-200 text-sm rounded px-2 py-1"
+        />
+        <button onClick={add} className="bg-teal-600 hover:bg-teal-500 text-white text-sm px-3 py-1 rounded">Add</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── TASK EDITOR MODAL ────────────────────────────────────────────────────────
+
+function TaskEditorModal({ task, tasks, onSave, onDelete, onClose }) {
+  const [form, setForm] = useState({ ...task });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showRolloverHistory, setShowRolloverHistory] = useState(false);
+
+  function field(key) {
+    return {
+      value: form[key] ?? "",
+      onChange: e => setForm(f => ({ ...f, [key]: e.target.value, updatedAt: new Date().toISOString() }))
+    };
+  }
+
+  function handleSave() {
+    onSave({ ...form, updatedAt: new Date().toISOString() });
+    onClose();
+  }
+
+  function handleDuplicate() {
+    onSave({
+      ...form,
+      id: genId(),
+      title: form.title + " (copy)",
+      status: "Not Started",
+      completionDate: null,
+      rolloverCount: 0,
+      rolloverHistory: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+    onClose();
+  }
+
+  return (
+    <div className="modal-overlay fixed inset-0 bg-black/70 z-50 flex items-start justify-center p-4 overflow-y-auto" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="bg-slate-800 border border-slate-700 rounded-xl w-full max-w-2xl my-4 shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-slate-700">
+          <h2 className="text-lg font-bold text-white">{task.id ? "Edit Task" : "New Task"}</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-white text-xl leading-none">✕</button>
+        </div>
+
+        <div className="p-4 space-y-4 max-h-[80vh] overflow-y-auto scrollbar-thin">
+          {/* Title */}
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Title *</label>
+            <input {...field("title")} className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-sm" />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Description</label>
+            <textarea {...field("description")} rows={2} className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-sm" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {/* Owner */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Owner</label>
+              <select {...field("owner")} className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-sm">
+                {OWNERS.map(o => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+            {/* Frequency */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Frequency</label>
+              <select {...field("frequency")} className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-sm">
+                {FREQUENCIES.map(f => <option key={f}>{f}</option>)}
+              </select>
+            </div>
+            {/* Category */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Category</label>
+              <select {...field("category")} className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-sm">
+                {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+            {/* Priority */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Priority</label>
+              <select {...field("priority")} className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-sm">
+                {PRIORITIES.map(p => <option key={p}>{p}</option>)}
+              </select>
+            </div>
+            {/* Status */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Status</label>
+              <select
+                value={form.status}
+                onChange={e => {
+                  const newStatus = e.target.value;
+                  setForm(f => ({
+                    ...f,
+                    status: newStatus,
+                    completionDate: newStatus === "Done" ? new Date().toISOString() : f.completionDate,
+                    updatedAt: new Date().toISOString()
+                  }));
+                }}
+                className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-sm"
+              >
+                {STATUSES.map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
+            {/* Due Date */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Due Date</label>
+              <input type="date" {...field("dueDate")} className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-sm" />
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Notes</label>
+            <textarea {...field("notes")} rows={3} className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-sm" />
+          </div>
+
+          {/* Attachments */}
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Attachments / Links</label>
+            <input {...field("attachments")} placeholder="Paste links or notes here" className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-sm" />
+          </div>
+
+          {/* Pathways */}
+          <div>
+            <label className="block text-xs text-slate-400 mb-2">Relevant Pathways</label>
+            <div className="flex flex-wrap gap-2">
+              {PATHWAYS.map(p => (
+                <label key={p.id} className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.pathways.includes(p.id)}
+                    onChange={e => {
+                      const newPathways = e.target.checked
+                        ? [...form.pathways, p.id]
+                        : form.pathways.filter(pid => pid !== p.id);
+                      setForm(f => ({ ...f, pathways: newPathways }));
+                    }}
+                    className="rounded"
+                  />
+                  <span className="text-xs text-slate-300">{p.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Auto-rollover */}
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.autoRollover}
+                onChange={e => setForm(f => ({ ...f, autoRollover: e.target.checked }))}
+                className="rounded"
+              />
+              <span className="text-sm text-slate-300">Auto-rollover overdue dates to today</span>
+            </label>
+          </div>
+
+          {/* Subtasks */}
+          <div>
+            <label className="block text-xs text-slate-400 mb-2">Subtasks</label>
+            <SubtaskEditor
+              subtasks={form.subtasks}
+              onChange={subtasks => setForm(f => ({ ...f, subtasks }))}
+            />
+          </div>
+
+          {/* Dependencies */}
+          <div>
+            <label className="block text-xs text-slate-400 mb-2">Dependencies</label>
+            <select
+              multiple
+              value={form.dependencies}
+              onChange={e => {
+                const vals = Array.from(e.target.selectedOptions).map(o => o.value);
+                setForm(f => ({ ...f, dependencies: vals }));
+              }}
+              className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-sm h-24"
+            >
+              {tasks.filter(t => t.id !== form.id).map(t => (
+                <option key={t.id} value={t.id}>{t.title} ({t.frequency})</option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-500 mt-1">Hold Ctrl/Cmd to select multiple</p>
+          </div>
+
+          {/* Rollover History */}
+          {form.rolloverHistory?.length > 0 && (
+            <div>
+              <button
+                onClick={() => setShowRolloverHistory(v => !v)}
+                className="text-xs text-teal-400 hover:text-teal-300 underline"
+              >
+                {showRolloverHistory ? "Hide" : "Show"} Rollover History ({form.rolloverHistory.length} entries)
+              </button>
+              {showRolloverHistory && (
+                <div className="mt-2 bg-slate-900 rounded p-2 text-xs">
+                  <table className="w-full text-left">
+                    <thead><tr className="text-slate-400"><th className="pb-1 pr-3">Date</th><th className="pb-1 pr-3">From</th><th className="pb-1">To</th></tr></thead>
+                    <tbody>
+                      {form.rolloverHistory.map((h, i) => (
+                        <tr key={i} className="text-slate-300 border-t border-slate-800">
+                          <td className="py-0.5 pr-3">{formatDate(h.date)}</td>
+                          <td className="py-0.5 pr-3">{formatDate(h.fromDate)}</td>
+                          <td className="py-0.5">{formatDate(h.toDate)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {form.rolloverCount > 0 && (
+                    <p className="text-slate-400 mt-1">Total rollovers: {form.rolloverCount}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between p-4 border-t border-slate-700 gap-3">
+          <div className="flex gap-2">
+            {showDeleteConfirm ? (
+              <>
+                <span className="text-sm text-red-400">Delete this task?</span>
+                <button onClick={() => { onDelete(task.id); onClose(); }} className="bg-red-600 hover:bg-red-500 text-white text-sm px-3 py-1 rounded">Yes, Delete</button>
+                <button onClick={() => setShowDeleteConfirm(false)} className="bg-slate-600 text-white text-sm px-3 py-1 rounded">Cancel</button>
+              </>
+            ) : (
+              <>
+                {task.id && (
+                  <button onClick={() => setShowDeleteConfirm(true)} className="text-red-400 hover:text-red-300 text-sm px-3 py-1 rounded border border-red-800 hover:border-red-600">Delete</button>
+                )}
+                <button onClick={handleDuplicate} className="text-slate-300 hover:text-white text-sm px-3 py-1 rounded border border-slate-600 hover:border-slate-400">Duplicate</button>
+              </>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="bg-slate-600 hover:bg-slate-500 text-white text-sm px-4 py-2 rounded">Cancel</button>
+            <button onClick={handleSave} className="bg-teal-600 hover:bg-teal-500 text-white text-sm px-4 py-2 rounded font-semibold">Save Task</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── TASK CARD ────────────────────────────────────────────────────────────────
+
+function TaskCard({ task, activePathway, selected, onSelect, onEdit, onStatusChange, onMoveUp, onMoveDown, bulkMode, index, totalInSection }) {
+  const [expanded, setExpanded] = useState(false);
+  const overdue = isOverdue(task.dueDate) && task.status !== "Done";
+  const inPathway = task.pathways.includes(activePathway);
+  const subtasksDone = task.subtasks.filter(s => s.done).length;
+  const subtasksTotal = task.subtasks.length;
+
+  const cardClass = `
+    relative bg-slate-800 border rounded-lg p-3 transition-all card-hover cursor-pointer
+    ${inPathway ? "border-slate-600" : "border-slate-700 opacity-60"}
+    ${task.status === "Done" ? "opacity-40" : ""}
+    ${selected ? "ring-2 ring-teal-500" : ""}
+    ${overdue ? "border-l-4 border-l-red-500" : ""}
+  `;
+
+  return (
+    <div className={cardClass}>
+      {bulkMode && (
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={onSelect}
+          className="absolute top-3 left-3 rounded"
+          onClick={e => e.stopPropagation()}
+        />
+      )}
+      <div className={`flex items-start gap-2 ${bulkMode ? "pl-6" : ""}`} onClick={() => setExpanded(v => !v)}>
+        {/* Drag handles */}
+        <div className="flex flex-col gap-0.5 pt-1 shrink-0" onClick={e => e.stopPropagation()}>
+          <button onClick={onMoveUp} disabled={index === 0} className="text-slate-500 hover:text-slate-300 disabled:opacity-20 text-xs leading-none drag-handle">▲</button>
+          <button onClick={onMoveDown} disabled={index === totalInSection - 1} className="text-slate-500 hover:text-slate-300 disabled:opacity-20 text-xs leading-none drag-handle">▼</button>
+        </div>
+
+        {/* Status quick-toggle */}
+        <div onClick={e => { e.stopPropagation(); onStatusChange(); }} className="mt-0.5 shrink-0">
+          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all
+            ${task.status === "Done" ? "bg-emerald-600 border-emerald-600" : "border-slate-500 hover:border-teal-400"}`}>
+            {task.status === "Done" && <span className="text-white text-xs leading-none">✓</span>}
+          </div>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <p className={`text-sm font-semibold leading-snug ${task.status === "Done" ? "line-through text-slate-500" : "text-white"}`}>
+              {task.title}
+            </p>
+            <button
+              onClick={e => { e.stopPropagation(); onEdit(); }}
+              className="text-slate-500 hover:text-teal-400 text-xs shrink-0 ml-1"
+            >✎</button>
+          </div>
+
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            <OwnerBadge owner={task.owner} />
+            <PriorityBadge priority={task.priority} />
+            <StatusBadge status={task.status} />
+            <Badge className="bg-slate-700 text-slate-300">{task.category}</Badge>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs">
+            {task.dueDate && (
+              <span className={overdue ? "text-red-400 font-semibold overdue-pulse" : "text-slate-400"}>
+                {overdue ? "⚠ Overdue: " : "Due: "}{formatDate(task.dueDate)}
+              </span>
+            )}
+            {task.rolloverCount > 0 && (
+              <Badge className={`${task.rolloverCount >= 3 ? "bg-orange-700 text-orange-100" : "bg-amber-800 text-amber-200"}`}>
+                {task.rolloverCount >= 3 ? "⚠ Rolled 3×+" : `↻ Rolled ${task.rolloverCount}×`}
+              </Badge>
+            )}
+            {subtasksTotal > 0 && (
+              <span className="text-slate-400">{subtasksDone}/{subtasksTotal} subtasks</span>
+            )}
+            {!inPathway && (
+              <Badge className="bg-slate-700 text-slate-400">Other pathway</Badge>
+            )}
+            {task.status === "Blocked" && (
+              <Badge className="bg-red-900 text-red-300">🚫 Blocked</Badge>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Expanded inline details */}
+      {expanded && (
+        <div className="mt-3 pt-3 border-t border-slate-700 text-sm space-y-2" onClick={e => e.stopPropagation()}>
+          {task.description && <p className="text-slate-300">{task.description}</p>}
+          {task.notes && (
+            <div>
+              <span className="text-slate-500 text-xs uppercase tracking-wide">Notes: </span>
+              <span className="text-slate-300">{task.notes}</span>
+            </div>
+          )}
+          {task.attachments && (
+            <div>
+              <span className="text-slate-500 text-xs uppercase tracking-wide">Links: </span>
+              <span className="text-slate-400 break-all">{task.attachments}</span>
+            </div>
+          )}
+          {task.subtasks.length > 0 && (
+            <div className="space-y-1">
+              {task.subtasks.map(s => (
+                <div key={s.id} className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-sm border ${s.done ? "bg-emerald-600 border-emerald-600" : "border-slate-500"} flex items-center justify-center`}>
+                    {s.done && <span className="text-white text-xs leading-none" style={{fontSize:"8px"}}>✓</span>}
+                  </div>
+                  <span className={s.done ? "line-through text-slate-500" : "text-slate-300"}>{s.title}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {task.pathways.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {task.pathways.map(pid => {
+                const p = PATHWAYS.find(pw => pw.id === pid);
+                return p ? <Badge key={pid} className={`${pid === activePathway ? "bg-teal-700 text-teal-100" : "bg-slate-700 text-slate-400"}`}>{p.label}</Badge> : null;
+              })}
+            </div>
+          )}
+          <div className="pt-1">
+            <button onClick={onEdit} className="bg-teal-700 hover:bg-teal-600 text-white text-xs px-3 py-1 rounded">Open Full Editor</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── BULK ACTION BAR ──────────────────────────────────────────────────────────
+
+function BulkActionBar({ selectedIds, tasks, onUpdate, onClear }) {
+  const [bulkStatus, setBulkStatus] = useState("");
+  const [bulkPriority, setBulkPriority] = useState("");
+  const [bulkOwner, setBulkOwner] = useState("");
+
+  function apply() {
+    const updates = {};
+    if (bulkStatus) updates.status = bulkStatus;
+    if (bulkPriority) updates.priority = bulkPriority;
+    if (bulkOwner) updates.owner = bulkOwner;
+    if (Object.keys(updates).length) {
+      onUpdate(selectedIds, updates);
+      onClear();
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap bg-slate-700 rounded-lg px-3 py-2 text-xs">
+      <span className="text-slate-300 font-semibold">{selectedIds.length} selected</span>
+      <select value={bulkStatus} onChange={e => setBulkStatus(e.target.value)} className="bg-slate-600 text-white rounded px-2 py-1">
+        <option value="">Set Status...</option>
+        {STATUSES.map(s => <option key={s}>{s}</option>)}
+      </select>
+      <select value={bulkPriority} onChange={e => setBulkPriority(e.target.value)} className="bg-slate-600 text-white rounded px-2 py-1">
+        <option value="">Set Priority...</option>
+        {PRIORITIES.map(p => <option key={p}>{p}</option>)}
+      </select>
+      <select value={bulkOwner} onChange={e => setBulkOwner(e.target.value)} className="bg-slate-600 text-white rounded px-2 py-1">
+        <option value="">Set Owner...</option>
+        {OWNERS.map(o => <option key={o}>{o}</option>)}
+      </select>
+      <button onClick={apply} className="bg-teal-600 hover:bg-teal-500 text-white px-3 py-1 rounded">Apply</button>
+      <button onClick={onClear} className="text-slate-400 hover:text-white underline">Clear Selection</button>
+    </div>
+  );
+}
+
+// ─── TASK SECTION ─────────────────────────────────────────────────────────────
+
+function TaskSection({ frequency, tasks, activePathway, onUpdate, onDelete, onAdd, onBulkUpdate }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [filters, setFilters] = useState({});
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [editingTask, setEditingTask] = useState(null);
+
+  const sectionTasks = useMemo(() => {
+    let t = tasks.filter(task => task.frequency === frequency);
+    // PATHWAY PRIORITY LOGIC: sort by active pathway
+    t = sortTasksForPathway(t, activePathway);
+    // Apply filters
+    if (filters.owner) t = t.filter(task => task.owner === filters.owner);
+    if (filters.category) t = t.filter(task => task.category === filters.category);
+    if (filters.status) t = t.filter(task => task.status === filters.status);
+    if (filters.priority) t = t.filter(task => task.priority === filters.priority);
+    if (filters.search) {
+      const s = filters.search.toLowerCase();
+      t = t.filter(task => task.title.toLowerCase().includes(s) || task.notes?.toLowerCase().includes(s));
+    }
+    return t;
+  }, [tasks, frequency, activePathway, filters]);
+
+  const done = sectionTasks.filter(t => t.status === "Done").length;
+  const blocked = sectionTasks.filter(t => t.status === "Blocked").length;
+
+  function handleMoveUp(taskId) {
+    const idx = sectionTasks.findIndex(t => t.id === taskId);
+    if (idx <= 0) return;
+    const above = sectionTasks[idx - 1];
+    const current = sectionTasks[idx];
+    onUpdate([
+      { ...current, sortOrder: above.sortOrder - 0.5, manuallyOrdered: true, pathwaySortOrder: { ...current.pathwaySortOrder, [activePathway]: above.sortOrder - 0.5 } },
+      { ...above, sortOrder: above.sortOrder + 0.5, manuallyOrdered: true, pathwaySortOrder: { ...above.pathwaySortOrder, [activePathway]: above.sortOrder + 0.5 } }
+    ]);
+  }
+
+  function handleMoveDown(taskId) {
+    const idx = sectionTasks.findIndex(t => t.id === taskId);
+    if (idx >= sectionTasks.length - 1) return;
+    const below = sectionTasks[idx + 1];
+    const current = sectionTasks[idx];
+    onUpdate([
+      { ...current, sortOrder: below.sortOrder + 0.5, manuallyOrdered: true, pathwaySortOrder: { ...current.pathwaySortOrder, [activePathway]: below.sortOrder + 0.5 } },
+      { ...below, sortOrder: below.sortOrder - 0.5, manuallyOrdered: true, pathwaySortOrder: { ...below.pathwaySortOrder, [activePathway]: below.sortOrder - 0.5 } }
+    ]);
+  }
+
+  function handleStatusChange(task) {
+    const cycle = ["Not Started", "In Progress", "Blocked", "Done"];
+    const nextIdx = (cycle.indexOf(task.status) + 1) % cycle.length;
+    const newStatus = cycle[nextIdx];
+    onUpdate([{
+      ...task,
+      status: newStatus,
+      completionDate: newStatus === "Done" ? new Date().toISOString() : task.completionDate,
+      updatedAt: new Date().toISOString()
+    }]);
+  }
+
+  function handleResetOrder() {
+    const tasksInSection = tasks.filter(t => t.frequency === frequency);
+    onUpdate(tasksInSection.map(t => ({ ...t, manuallyOrdered: false, pathwaySortOrder: {} })));
+  }
+
+  function toggleSelect(id) {
+    setSelectedIds(ids => ids.includes(id) ? ids.filter(i => i !== id) : [...ids, id]);
+  }
+
+  const bgColor = frequency === "Daily" ? "bg-teal-900/30" : frequency === "Weekly" ? "bg-blue-900/30" : "bg-purple-900/30";
+  const borderColor = frequency === "Daily" ? "border-teal-700" : frequency === "Weekly" ? "border-blue-700" : "border-purple-700";
+
+  return (
+    <div className={`rounded-xl border ${borderColor} ${bgColor} overflow-hidden mb-4`}>
+      {/* Section Header */}
+      <div
+        className="flex items-center justify-between px-4 py-3 cursor-pointer"
+        onClick={() => setCollapsed(v => !v)}
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-xl">{frequency === "Daily" ? "📅" : frequency === "Weekly" ? "📆" : "🗓"}</span>
+          <h3 className="text-lg font-bold text-white">{frequency} Tasks</h3>
+          <Badge className="bg-slate-700 text-slate-300">{sectionTasks.length}</Badge>
+          {done > 0 && <Badge className="bg-emerald-800 text-emerald-200">{done} done</Badge>}
+          {blocked > 0 && <Badge className="bg-red-900 text-red-300">{blocked} blocked</Badge>}
+        </div>
+        <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+          <button
+            onClick={handleResetOrder}
+            className="text-xs text-slate-400 hover:text-white px-2 py-1 border border-slate-600 rounded"
+          >Reset Order</button>
+          <button
+            onClick={() => { setBulkMode(v => !v); setSelectedIds([]); }}
+            className={`text-xs px-2 py-1 border rounded ${bulkMode ? "bg-teal-700 border-teal-600 text-white" : "text-slate-400 hover:text-white border-slate-600"}`}
+          >Bulk Edit</button>
+          <button
+            onClick={() => setEditingTask(createTask({ frequency, pathways: ["keep-retro-sell-venetian"] }))}
+            className="text-xs bg-teal-600 hover:bg-teal-500 text-white px-2 py-1 rounded"
+          >+ Add Task</button>
+          <span className="text-slate-400 text-lg ml-1">{collapsed ? "▶" : "▼"}</span>
+        </div>
+      </div>
+
+      {!collapsed && (
+        <div className="px-4 pb-4">
+          {/* Filters */}
+          <div className="mb-3">
+            <FilterBar filters={filters} onChange={setFilters} />
+          </div>
+
+          {/* Bulk action bar */}
+          {bulkMode && selectedIds.length > 0 && (
+            <div className="mb-3">
+              <BulkActionBar
+                selectedIds={selectedIds}
+                tasks={sectionTasks}
+                onUpdate={(ids, updates) => {
+                  const updatedTasks = tasks
+                    .filter(t => ids.includes(t.id))
+                    .map(t => ({ ...t, ...updates, updatedAt: new Date().toISOString() }));
+                  onBulkUpdate(updatedTasks);
+                }}
+                onClear={() => setSelectedIds([])}
+              />
+            </div>
+          )}
+
+          {/* Task cards */}
+          <div className="space-y-2">
+            {sectionTasks.length === 0 && (
+              <p className="text-slate-500 text-sm text-center py-4">No tasks match the current filters.</p>
+            )}
+            {sectionTasks.map((task, idx) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                activePathway={activePathway}
+                selected={selectedIds.includes(task.id)}
+                onSelect={() => toggleSelect(task.id)}
+                onEdit={() => setEditingTask(task)}
+                onStatusChange={() => handleStatusChange(task)}
+                onMoveUp={() => handleMoveUp(task.id)}
+                onMoveDown={() => handleMoveDown(task.id)}
+                bulkMode={bulkMode}
+                index={idx}
+                totalInSection={sectionTasks.length}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Task Editor Modal */}
+      {editingTask && (
+        <TaskEditorModal
+          task={editingTask}
+          tasks={tasks}
+          onSave={savedTask => {
+            if (tasks.find(t => t.id === savedTask.id)) {
+              onUpdate([savedTask]);
+            } else {
+              onUpdate([savedTask], true); // isNew
+            }
+          }}
+          onDelete={onDelete}
+          onClose={() => setEditingTask(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── READINESS SCORE WIDGET ───────────────────────────────────────────────────
+
+function ReadinessScoreWidget({ tasks }) {
+  const score = useMemo(() => calcReadinessScore(tasks), [tasks]);
+  return (
+    <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+      <h3 className="text-sm font-bold text-slate-300 mb-2 uppercase tracking-wide">FL Move Readiness</h3>
+      <div className="flex items-center gap-3 mb-2">
+        <span className={`text-4xl font-bold ${scoreColor(score)}`}>{score}</span>
+        <span className="text-slate-500 text-lg">/100</span>
+      </div>
+      <div className="w-full bg-slate-700 rounded-full h-3 overflow-hidden">
+        <div
+          className={`h-3 rounded-full transition-all duration-500 ${scoreBarColor(score)}`}
+          style={{ width: `${score}%` }}
+        />
+      </div>
+      <p className="text-xs text-slate-500 mt-2">
+        {score < 40 ? "Early stages — focus on Critical tasks." :
+         score < 60 ? "Progress building — keep momentum." :
+         score < 80 ? "Strong progress — near the finish line." :
+         "High readiness — execute the final steps!"}
+      </p>
+    </div>
+  );
+}
+
+// ─── DASHBOARD SUMMARY ────────────────────────────────────────────────────────
+
+function DashboardSummary({ tasks, activePathway, pathways, onPathwayFocusEdit }) {
+  const pathway = pathways.find(p => p.id === activePathway);
+  const today = todayISO();
+  const notDone = tasks.filter(t => t.status !== "Done");
+  const overdue = notDone.filter(t => t.dueDate && t.dueDate < today);
+  const blocked = notDone.filter(t => t.status === "Blocked");
+  const thisWeek = notDone.filter(t => isDueThisWeek(t.dueDate));
+
+  const top5 = useMemo(() => {
+    return sortTasksForPathway(
+      notDone.filter(t => ["Critical", "High"].includes(t.priority)),
+      activePathway
+    ).slice(0, 5);
+  }, [tasks, activePathway]);
+
+  const ownerCounts = useMemo(() => {
+    return OWNERS.reduce((acc, o) => {
+      acc[o] = notDone.filter(t => t.owner === o).length;
+      return acc;
+    }, {});
+  }, [tasks]);
+
+  return (
+    <div className="space-y-4">
+      {/* Pathway focus card */}
+      {pathway && (
+        <div className="bg-slate-800 border border-teal-700 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-teal-400 font-bold text-sm uppercase tracking-wide">Active Pathway</span>
+            <Badge className="bg-teal-800 text-teal-200">{pathway.label}</Badge>
+          </div>
+          <p className="text-slate-300 text-sm">{pathway.focus}</p>
+        </div>
+      )}
+
+      {/* Stats row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-slate-800 border border-slate-700 rounded-xl p-3 text-center">
+          <p className={`text-3xl font-bold ${overdue.length > 0 ? "text-red-400" : "text-green-400"}`}>{overdue.length}</p>
+          <p className="text-xs text-slate-400 mt-1">Overdue</p>
+        </div>
+        <div className="bg-slate-800 border border-slate-700 rounded-xl p-3 text-center">
+          <p className="text-3xl font-bold text-orange-400">{blocked.length}</p>
+          <p className="text-xs text-slate-400 mt-1">Blocked</p>
+        </div>
+        <div className="bg-slate-800 border border-slate-700 rounded-xl p-3 text-center">
+          <p className="text-3xl font-bold text-sky-400">{thisWeek.length}</p>
+          <p className="text-xs text-slate-400 mt-1">Due This Week</p>
+        </div>
+        <div className="bg-slate-800 border border-slate-700 rounded-xl p-3 text-center">
+          <p className="text-3xl font-bold text-slate-300">{notDone.length}</p>
+          <p className="text-xs text-slate-400 mt-1">Open Tasks</p>
+        </div>
+      </div>
+
+      {/* Owner breakdown */}
+      <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+        <h3 className="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wide">Open Tasks by Owner</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {OWNERS.map(owner => (
+            <div key={owner} className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full`} style={{ background: OWNER_COLORS[owner].hex }} />
+              <span className="text-sm text-slate-300">{owner}</span>
+              <span className="ml-auto text-white font-bold">{ownerCounts[owner]}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Today's Top 5 */}
+      <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+        <h3 className="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wide">Today's Top 5 Tasks</h3>
+        {top5.length === 0 ? (
+          <p className="text-slate-500 text-sm">No critical/high tasks open. 🎉</p>
+        ) : (
+          <div className="space-y-2">
+            {top5.map((t, i) => (
+              <div key={t.id} className="flex items-center gap-2">
+                <span className="text-slate-500 text-sm w-4 shrink-0">{i + 1}.</span>
+                <PriorityBadge priority={t.priority} />
+                <OwnerBadge owner={t.owner} />
+                <span className="text-sm text-slate-200 truncate flex-1">{t.title}</span>
+                {t.dueDate && isOverdue(t.dueDate) && <span className="text-red-400 text-xs shrink-0">Overdue</span>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── PATHWAY SELECTOR ─────────────────────────────────────────────────────────
+
+function PathwaySelector({ pathways, active, onChange, onEditPathway }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      {pathways.map(p => (
+        <div
+          key={p.id}
+          onClick={() => onChange(p.id)}
+          className={`pathway-tab rounded-xl border-2 p-4 cursor-pointer
+            ${active === p.id
+              ? "border-teal-400 bg-teal-900/40 shadow-lg shadow-teal-900/30"
+              : "border-slate-700 bg-slate-800 hover:border-slate-500"
+            }`}
+        >
+          <div className="flex items-start justify-between gap-1">
+            <p className={`font-bold text-sm leading-snug ${active === p.id ? "text-teal-300" : "text-white"}`}>{p.label}</p>
+            <button
+              onClick={e => { e.stopPropagation(); onEditPathway(p.id); }}
+              className="text-slate-500 hover:text-white text-xs shrink-0 mt-0.5"
+            >✎</button>
+          </div>
+          <p className={`text-xs mt-1 ${active === p.id ? "text-teal-400" : "text-slate-400"}`}>{p.subtitle}</p>
+          {active === p.id && (
+            <div className="mt-2 pt-2 border-t border-teal-700">
+              <p className="text-xs text-teal-300/80 leading-relaxed">{p.focus}</p>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── PATHWAY EDITOR MODAL ─────────────────────────────────────────────────────
+
+function PathwayEditorModal({ pathway, onSave, onClose }) {
+  const [form, setForm] = useState({ ...pathway });
+  return (
+    <div className="modal-overlay fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-800 border border-slate-700 rounded-xl w-full max-w-md shadow-2xl">
+        <div className="flex items-center justify-between p-4 border-b border-slate-700">
+          <h2 className="text-lg font-bold text-white">Edit Pathway</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-white text-xl">✕</button>
+        </div>
+        <div className="p-4 space-y-3">
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Name</label>
+            <input value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Subtitle</label>
+            <input value={form.subtitle} onChange={e => setForm(f => ({ ...f, subtitle: e.target.value }))} className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Strategic Focus (editable)</label>
+            <textarea value={form.focus} onChange={e => setForm(f => ({ ...f, focus: e.target.value }))} rows={4} className="w-full bg-slate-700 border border-slate-600 text-white rounded px-3 py-2 text-sm" />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 p-4 border-t border-slate-700">
+          <button onClick={onClose} className="bg-slate-600 hover:bg-slate-500 text-white text-sm px-4 py-2 rounded">Cancel</button>
+          <button onClick={() => { onSave(form); onClose(); }} className="bg-teal-600 hover:bg-teal-500 text-white text-sm px-4 py-2 rounded font-semibold">Save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── IMPORT / EXPORT CONTROLS ─────────────────────────────────────────────────
+
+function ImportExportControls({ tasks, pathways, onImport, onReset }) {
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [importError, setImportError] = useState("");
+  const fileInputRef = useRef(null);
+
+  function exportJSON() {
+    const data = JSON.stringify({ tasks, pathways, exportedAt: new Date().toISOString() }, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `fl-move-${todayISO()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportCSV() {
+    const headers = ["Title", "Owner", "Frequency", "Category", "Priority", "Status", "Due Date", "Rollover Count", "Notes"];
+    const rows = tasks.map(t => [
+      `"${(t.title || "").replace(/"/g, '""')}"`,
+      t.owner,
+      t.frequency,
+      t.category,
+      t.priority,
+      t.status,
+      t.dueDate || "",
+      t.rolloverCount,
+      `"${(t.notes || "").replace(/"/g, '""')}"`
+    ]);
+    const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `fl-move-${todayISO()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleImport(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (data.tasks && Array.isArray(data.tasks)) {
+          onImport(data);
+          setImportError("");
+        } else {
+          setImportError("Invalid file format. Expected {tasks: [...]}");
+        }
+      } catch {
+        setImportError("Could not parse JSON file.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <button onClick={exportJSON} className="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs px-3 py-1.5 rounded border border-slate-600">⬇ Export JSON</button>
+      <button onClick={exportCSV} className="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs px-3 py-1.5 rounded border border-slate-600">⬇ Export CSV</button>
+      <button onClick={() => fileInputRef.current?.click()} className="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs px-3 py-1.5 rounded border border-slate-600">⬆ Import JSON</button>
+      <input ref={fileInputRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
+      {showResetConfirm ? (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-red-400">Reset all data to demo?</span>
+          <button onClick={() => { onReset(); setShowResetConfirm(false); }} className="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1.5 rounded">Yes, Reset</button>
+          <button onClick={() => setShowResetConfirm(false)} className="bg-slate-600 text-white text-xs px-2 py-1.5 rounded">Cancel</button>
+        </div>
+      ) : (
+        <button onClick={() => setShowResetConfirm(true)} className="text-red-400 hover:text-red-300 text-xs px-3 py-1.5 rounded border border-red-900 hover:border-red-700">↺ Reset to Demo Data</button>
+      )}
+      {importError && <span className="text-red-400 text-xs">{importError}</span>}
+    </div>
+  );
+}
+
+// ─── ROLLOVER HISTORY MODAL ───────────────────────────────────────────────────
+
+function RolloverHistoryModal({ tasks, onClose }) {
+  const withHistory = tasks.filter(t => t.rolloverHistory?.length > 0);
+  return (
+    <div className="modal-overlay fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="bg-slate-800 border border-slate-700 rounded-xl w-full max-w-2xl shadow-2xl my-4">
+        <div className="flex items-center justify-between p-4 border-b border-slate-700">
+          <h2 className="text-lg font-bold text-white">Rollover History</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-white text-xl">✕</button>
+        </div>
+        <div className="p-4 max-h-[70vh] overflow-y-auto scrollbar-thin">
+          {withHistory.length === 0 ? (
+            <p className="text-slate-500 text-sm">No tasks have been rolled over yet.</p>
+          ) : (
+            <div className="space-y-4">
+              {withHistory.map(task => (
+                <div key={task.id} className="bg-slate-900 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="font-semibold text-white text-sm">{task.title}</span>
+                    {task.rolloverCount >= 3 && <Badge className="bg-orange-700 text-orange-200">⚠ {task.rolloverCount} rollovers</Badge>}
+                  </div>
+                  <table className="w-full text-xs text-left">
+                    <thead><tr className="text-slate-400"><th className="pb-1 pr-4">Rolled On</th><th className="pb-1 pr-4">From Date</th><th className="pb-1">To Date</th></tr></thead>
+                    <tbody>
+                      {task.rolloverHistory.map((h, i) => (
+                        <tr key={i} className="text-slate-300 border-t border-slate-800">
+                          <td className="py-0.5 pr-4">{formatDate(h.date)}</td>
+                          <td className="py-0.5 pr-4">{formatDate(h.fromDate)}</td>
+                          <td className="py-0.5">{formatDate(h.toDate)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="flex justify-end p-4 border-t border-slate-700">
+          <button onClick={onClose} className="bg-slate-600 hover:bg-slate-500 text-white text-sm px-4 py-2 rounded">Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+
+function App() {
+  const [tasks, setTasks] = useState(() => {
+    try {
+      const saved = localStorage.getItem("flmove_tasks");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return generateSeedTasks();
+  });
+
+  const [pathways, setPathways] = useState(() => {
+    try {
+      const saved = localStorage.getItem("flmove_pathways");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return PATHWAYS;
+  });
+
+  const [activePathway, setActivePathway] = useState(() => {
+    return localStorage.getItem("flmove_activePathway") || "keep-retro-sell-venetian";
+  });
+
+  const [editingPathwayId, setEditingPathwayId] = useState(null);
+  const [showRolloverModal, setShowRolloverModal] = useState(false);
+  const [activeTab, setActiveTab] = useState("dashboard"); // dashboard | tasks
+
+  // Persist to localStorage
+  useEffect(() => {
+    try { localStorage.setItem("flmove_tasks", JSON.stringify(tasks)); } catch {}
+  }, [tasks]);
+  useEffect(() => {
+    try { localStorage.setItem("flmove_pathways", JSON.stringify(pathways)); } catch {}
+  }, [pathways]);
+  useEffect(() => {
+    try { localStorage.setItem("flmove_activePathway", activePathway); } catch {}
+  }, [activePathway]);
+
+  // ROLLOVER LOGIC: Run on mount to catch overdue tasks
+  useEffect(() => {
+    setTasks(prev => runRolloverCheck(prev));
+  }, []);
+
+  // Midnight rollover check using interval
+  useEffect(() => {
+    const CHECK_INTERVAL = 60 * 1000; // check every minute
+    let lastDate = todayISO();
+    const interval = setInterval(() => {
+      const currentDate = todayISO();
+      if (currentDate !== lastDate) {
+        lastDate = currentDate;
+        setTasks(prev => runRolloverCheck(prev));
+      }
+    }, CHECK_INTERVAL);
+    return () => clearInterval(interval);
+  }, []);
+
+  function handleUpdateTasks(updatedArr, isNew = false) {
+    setTasks(prev => {
+      if (isNew) {
+        return [...prev, ...updatedArr];
+      }
+      const map = new Map(updatedArr.map(t => [t.id, t]));
+      return prev.map(t => map.has(t.id) ? map.get(t.id) : t);
+    });
+  }
+
+  function handleDeleteTask(id) {
+    setTasks(prev => prev.filter(t => t.id !== id));
+  }
+
+  function handleAddTask(newTask) {
+    setTasks(prev => [...prev, newTask]);
+  }
+
+  function handleBulkUpdate(updatedTasks) {
+    handleUpdateTasks(updatedTasks);
+  }
+
+  function handleImport(data) {
+    if (data.tasks) setTasks(data.tasks);
+    if (data.pathways) setPathways(data.pathways);
+  }
+
+  function handleReset() {
+    setTasks(generateSeedTasks());
+    setPathways(PATHWAYS);
+    setActivePathway("keep-retro-sell-venetian");
+  }
+
+  function handleEditPathway(id) {
+    setEditingPathwayId(id);
+  }
+
+  function handleSavePathway(updated) {
+    setPathways(prev => prev.map(p => p.id === updated.id ? updated : p));
+  }
+
+  const editingPathway = pathways.find(p => p.id === editingPathwayId);
+
+  const rolledOverCount = tasks.filter(t => t.rolloverCount >= 3).length;
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-slate-100">
+      {/* ── TOP NAV ── */}
+      <header className="bg-slate-950 border-b border-slate-800 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div>
+                <h1 className="text-lg font-bold text-teal-400 leading-none">FL MOVE</h1>
+                <p className="text-xs text-slate-500">Bunnell Family Transition Dashboard</p>
+              </div>
+              <div className="h-6 w-px bg-slate-700 hidden sm:block" />
+              <div className="hidden sm:flex gap-1">
+                <button
+                  onClick={() => setActiveTab("dashboard")}
+                  className={`text-sm px-3 py-1.5 rounded-lg font-medium transition-all ${activeTab === "dashboard" ? "bg-teal-700 text-white" : "text-slate-400 hover:text-white hover:bg-slate-800"}`}
+                >Dashboard</button>
+                <button
+                  onClick={() => setActiveTab("tasks")}
+                  className={`text-sm px-3 py-1.5 rounded-lg font-medium transition-all ${activeTab === "tasks" ? "bg-teal-700 text-white" : "text-slate-400 hover:text-white hover:bg-slate-800"}`}
+                >All Tasks</button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {rolledOverCount > 0 && (
+                <button
+                  onClick={() => setShowRolloverModal(true)}
+                  className="text-xs bg-orange-900 hover:bg-orange-800 text-orange-200 px-2 py-1.5 rounded border border-orange-700"
+                >
+                  ⚠ {rolledOverCount} task{rolledOverCount !== 1 ? "s" : ""} rolled 3×+
+                </button>
+              )}
+              <button
+                onClick={() => setShowRolloverModal(true)}
+                className="text-xs text-slate-400 hover:text-white px-2 py-1.5 rounded border border-slate-700 hover:border-slate-500"
+              >↻ Rollover Log</button>
+              <span className="text-xs text-slate-500">Today: {formatDate(todayISO())}</span>
+            </div>
+          </div>
+
+          {/* Mobile tabs */}
+          <div className="flex sm:hidden gap-1 mt-2">
+            <button onClick={() => setActiveTab("dashboard")} className={`text-sm px-3 py-1.5 rounded-lg font-medium flex-1 ${activeTab === "dashboard" ? "bg-teal-700 text-white" : "text-slate-400 bg-slate-800"}`}>Dashboard</button>
+            <button onClick={() => setActiveTab("tasks")} className={`text-sm px-3 py-1.5 rounded-lg font-medium flex-1 ${activeTab === "tasks" ? "bg-teal-700 text-white" : "text-slate-400 bg-slate-800"}`}>Tasks</button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 py-6">
+        {/* ── PATHWAY SELECTOR ── */}
+        <PathwaySelector
+          pathways={pathways}
+          active={activePathway}
+          onChange={setActivePathway}
+          onEditPathway={handleEditPathway}
+        />
+
+        {activeTab === "dashboard" ? (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <DashboardSummary
+                tasks={tasks}
+                activePathway={activePathway}
+                pathways={pathways}
+              />
+            </div>
+            <div className="space-y-4">
+              <ReadinessScoreWidget tasks={tasks} />
+              <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+                <h3 className="text-sm font-bold text-slate-300 mb-3 uppercase tracking-wide">Data Tools</h3>
+                <ImportExportControls
+                  tasks={tasks}
+                  pathways={pathways}
+                  onImport={handleImport}
+                  onReset={handleReset}
+                />
+              </div>
+              <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+                <h3 className="text-sm font-bold text-slate-300 mb-2 uppercase tracking-wide">Task Summary</h3>
+                <div className="space-y-1.5">
+                  {STATUSES.map(s => {
+                    const count = tasks.filter(t => t.status === s).length;
+                    const pct = Math.round((count / Math.max(1, tasks.length)) * 100);
+                    return (
+                      <div key={s} className="flex items-center gap-2">
+                        <StatusBadge status={s} />
+                        <div className="flex-1 bg-slate-700 rounded-full h-1.5">
+                          <div className="bg-teal-500 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-xs text-slate-400 w-8 text-right">{count}</span>
+                      </div>
+                    );
+                  })}
+                  <p className="text-xs text-slate-500 mt-2">Total tasks: {tasks.length}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div>
+            {/* Task Board - Three frequency sections */}
+            {["Daily", "Weekly", "Monthly"].map(freq => (
+              <TaskSection
+                key={freq}
+                frequency={freq}
+                tasks={tasks}
+                activePathway={activePathway}
+                onUpdate={handleUpdateTasks}
+                onDelete={handleDeleteTask}
+                onAdd={handleAddTask}
+                onBulkUpdate={handleBulkUpdate}
+              />
+            ))}
+
+            {/* One-time tasks section */}
+            <TaskSection
+              key="One-time"
+              frequency="One-time"
+              tasks={tasks}
+              activePathway={activePathway}
+              onUpdate={handleUpdateTasks}
+              onDelete={handleDeleteTask}
+              onAdd={handleAddTask}
+              onBulkUpdate={handleBulkUpdate}
+            />
+          </div>
+        )}
+
+        {/* ── FOOTER ── */}
+        <footer className="mt-12 pt-6 border-t border-slate-800 text-center">
+          <p className="text-slate-600 text-xs">
+            FL MOVE — Bunnell Family Transition Dashboard &nbsp;·&nbsp;
+            Justin &amp; Anna Bunnell &nbsp;·&nbsp;
+            Data stored locally in your browser &nbsp;·&nbsp;
+            <span className="text-slate-700">Use Export JSON to back up your data</span>
+          </p>
+        </footer>
+      </main>
+
+      {/* ── MODALS ── */}
+      {editingPathway && (
+        <PathwayEditorModal
+          pathway={editingPathway}
+          onSave={handleSavePathway}
+          onClose={() => setEditingPathwayId(null)}
+        />
+      )}
+      {showRolloverModal && (
+        <RolloverHistoryModal tasks={tasks} onClose={() => setShowRolloverModal(false)} />
+      )}
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+</script>
+</body>
+</html>
