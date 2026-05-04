@@ -1424,6 +1424,163 @@ async function saveToCloud(state) {
   }
 }
 
+// ─── NOTES & LOG ──────────────────────────────────────────────────────────────
+
+function NotesLog({ notes, loading, onAdd, onDelete, onPin }) {
+  const [body, setBody]     = useState("");
+  const [author, setAuthor] = useState("Justin");
+  const [filter, setFilter] = useState("all"); // all | justin | anna | both
+  const [search, setSearch] = useState("");
+  const [confirmId, setConfirmId] = useState(null);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (!body.trim()) return;
+    onAdd({ author, body: body.trim() });
+    setBody("");
+  }
+
+  const pinned   = notes.filter(n => n.pinned);
+  const unpinned = notes.filter(n => !n.pinned);
+
+  function applyFilters(list) {
+    return list.filter(n => {
+      const matchAuthor = filter === "all" || n.author.toLowerCase() === filter;
+      const matchSearch = !search || n.body.toLowerCase().includes(search.toLowerCase()) || n.author.toLowerCase().includes(search.toLowerCase());
+      return matchAuthor && matchSearch;
+    });
+  }
+
+  const filteredPinned   = applyFilters(pinned);
+  const filteredUnpinned = applyFilters(unpinned);
+
+  function authorColor(a) {
+    if (a === "Justin")  return "bg-blue-900 text-blue-300 border-blue-700";
+    if (a === "Anna")    return "bg-pink-900 text-pink-300 border-pink-700";
+    return "bg-purple-900 text-purple-300 border-purple-700";
+  }
+
+  function NoteCard({ note }) {
+    return (
+      <div className={`bg-slate-800 border rounded-xl p-4 space-y-2 ${note.pinned ? "border-yellow-600" : "border-slate-700"}`}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded border ${authorColor(note.author)}`}>{note.author}</span>
+            {note.pinned && <span className="text-xs text-yellow-400">📌 Pinned</span>}
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => onPin(note)}
+              title={note.pinned ? "Unpin" : "Pin"}
+              className="text-slate-500 hover:text-yellow-400 text-sm px-1.5 py-0.5 rounded hover:bg-slate-700"
+            >{note.pinned ? "★" : "☆"}</button>
+            {confirmId === note.id ? (
+              <>
+                <button onClick={() => { onDelete(note.id); setConfirmId(null); }} className="text-xs text-red-400 hover:text-red-300 px-1.5 py-0.5 rounded hover:bg-slate-700">Delete?</button>
+                <button onClick={() => setConfirmId(null)} className="text-xs text-slate-400 hover:text-white px-1.5 py-0.5 rounded hover:bg-slate-700">Cancel</button>
+              </>
+            ) : (
+              <button onClick={() => setConfirmId(note.id)} className="text-slate-600 hover:text-red-400 text-sm px-1.5 py-0.5 rounded hover:bg-slate-700">✕</button>
+            )}
+          </div>
+        </div>
+        <p className="text-slate-200 text-sm whitespace-pre-wrap leading-relaxed">{note.body}</p>
+        <p className="text-xs text-slate-500">
+          {new Date(note.createdAt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+          {note.updatedAt !== note.createdAt && " · edited"}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-white">Notes &amp; Log</h2>
+          <p className="text-sm text-slate-400 mt-0.5">Shared family log — visible to everyone signed in. Great for decisions, updates, and reminders.</p>
+        </div>
+        <span className="text-xs text-slate-500">{notes.length} entr{notes.length === 1 ? "y" : "ies"}</span>
+      </div>
+
+      {/* Compose */}
+      <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+        <h3 className="text-sm font-semibold text-slate-300 mb-3">Add Note</h3>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="flex gap-2">
+            {["Justin", "Anna", "Both"].map(a => (
+              <button
+                key={a}
+                type="button"
+                onClick={() => setAuthor(a)}
+                className={`text-sm px-3 py-1.5 rounded-lg border font-medium transition-all ${author === a ? authorColor(a) : "border-slate-600 text-slate-400 hover:border-slate-400"}`}
+              >{a}</button>
+            ))}
+          </div>
+          <textarea
+            value={body}
+            onChange={e => setBody(e.target.value)}
+            placeholder="What's happening? Decisions made, progress, blockers, reminders..."
+            rows={4}
+            className="w-full bg-slate-900 border border-slate-600 rounded-lg text-slate-200 text-sm p-3 outline-none focus:border-teal-500 resize-none placeholder-slate-500"
+          />
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={!body.trim()}
+              className="bg-teal-600 hover:bg-teal-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all"
+            >Add to Log</button>
+          </div>
+        </form>
+      </div>
+
+      {/* Filters */}
+      <div className="flex gap-2 flex-wrap items-center">
+        <div className="flex gap-1">
+          {[["all","All"],["justin","Justin"],["anna","Anna"],["both","Both"]].map(([v,l]) => (
+            <button key={v} onClick={() => setFilter(v)} className={`text-xs px-2.5 py-1 rounded-lg border transition-all ${filter === v ? "bg-teal-700 border-teal-600 text-white" : "border-slate-700 text-slate-400 hover:border-slate-500"}`}>{l}</button>
+          ))}
+        </div>
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search notes…"
+          className="bg-slate-800 border border-slate-700 rounded-lg text-slate-200 text-xs px-3 py-1.5 outline-none focus:border-teal-500 placeholder-slate-500 flex-1 min-w-[160px]"
+        />
+        {(filter !== "all" || search) && (
+          <button onClick={() => { setFilter("all"); setSearch(""); }} className="text-xs text-slate-400 hover:text-white">Clear</button>
+        )}
+      </div>
+
+      {loading && <p className="text-slate-400 text-sm text-center py-8">Loading notes…</p>}
+
+      {!loading && filteredPinned.length === 0 && filteredUnpinned.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-slate-500 text-sm">No notes yet.</p>
+          <p className="text-slate-600 text-xs mt-1">Use this log to capture decisions, progress updates, blockers, and reminders for each other.</p>
+        </div>
+      )}
+
+      {/* Pinned notes */}
+      {!loading && filteredPinned.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-xs font-semibold text-yellow-500 uppercase tracking-wide">Pinned</h3>
+          {filteredPinned.map(n => <NoteCard key={n.id} note={n} />)}
+        </div>
+      )}
+
+      {/* All other notes */}
+      {!loading && filteredUnpinned.length > 0 && (
+        <div className="space-y-3">
+          {filteredPinned.length > 0 && <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">All Entries</h3>}
+          {filteredUnpinned.map(n => <NoteCard key={n.id} note={n} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 
 function App() {
@@ -1450,7 +1607,20 @@ function App() {
 
   const [editingPathwayId, setEditingPathwayId] = useState(null);
   const [showRolloverModal, setShowRolloverModal] = useState(false);
-  const [activeTab, setActiveTab] = useState("dashboard"); // dashboard | tasks
+  const [activeTab, setActiveTab] = useState("dashboard"); // dashboard | tasks | notes
+  const [notes, setNotes] = useState([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+
+  // Load notes from cloud whenever the notes tab is opened
+  useEffect(() => {
+    if (activeTab !== "notes") return;
+    setNotesLoading(true);
+    fetch("/api/notes", { credentials: "same-origin" })
+      .then(r => r.json())
+      .then(data => { setNotes(Array.isArray(data) ? data : []); })
+      .catch(() => {})
+      .finally(() => setNotesLoading(false));
+  }, [activeTab]);
   const [syncStatus, setSyncStatus] = useState("loading"); // loading | synced | saving | error
 
   // On mount: pull latest state from cloud (overrides localStorage cache)
@@ -1596,6 +1766,10 @@ function App() {
                   onClick={() => setActiveTab("tasks")}
                   className={`text-sm px-3 py-1.5 rounded-lg font-medium transition-all ${activeTab === "tasks" ? "bg-teal-700 text-white" : "text-slate-400 hover:text-white hover:bg-slate-800"}`}
                 >All Tasks</button>
+                <button
+                  onClick={() => setActiveTab("notes")}
+                  className={`text-sm px-3 py-1.5 rounded-lg font-medium transition-all ${activeTab === "notes" ? "bg-teal-700 text-white" : "text-slate-400 hover:text-white hover:bg-slate-800"}`}
+                >📝 Notes &amp; Log</button>
               </div>
             </div>
 
@@ -1632,6 +1806,7 @@ function App() {
           <div className="flex sm:hidden gap-1 mt-2">
             <button onClick={() => setActiveTab("dashboard")} className={`text-sm px-3 py-1.5 rounded-lg font-medium flex-1 ${activeTab === "dashboard" ? "bg-teal-700 text-white" : "text-slate-400 bg-slate-800"}`}>Dashboard</button>
             <button onClick={() => setActiveTab("tasks")} className={`text-sm px-3 py-1.5 rounded-lg font-medium flex-1 ${activeTab === "tasks" ? "bg-teal-700 text-white" : "text-slate-400 bg-slate-800"}`}>Tasks</button>
+            <button onClick={() => setActiveTab("notes")} className={`text-sm px-3 py-1.5 rounded-lg font-medium flex-1 ${activeTab === "notes" ? "bg-teal-700 text-white" : "text-slate-400 bg-slate-800"}`}>📝 Log</button>
           </div>
         </div>
       </header>
@@ -1645,7 +1820,39 @@ function App() {
           onEditPathway={handleEditPathway}
         />
 
-        {activeTab === "dashboard" ? (
+        {activeTab === "notes" ? (
+          <NotesLog
+            notes={notes}
+            loading={notesLoading}
+            onAdd={(note) => {
+              fetch("/api/notes", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(note),
+              })
+                .then(r => r.json())
+                .then(saved => setNotes(prev => [saved, ...prev]))
+                .catch(() => {});
+            }}
+            onDelete={(id) => {
+              fetch(`/api/notes?id=${id}`, { method: "DELETE", credentials: "same-origin" })
+                .then(() => setNotes(prev => prev.filter(n => n.id !== id)))
+                .catch(() => {});
+            }}
+            onPin={(note) => {
+              fetch("/api/notes", {
+                method: "PATCH",
+                credentials: "same-origin",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: note.id, pinned: !note.pinned }),
+              })
+                .then(r => r.json())
+                .then(updated => setNotes(prev => prev.map(n => n.id === updated.id ? updated : n)))
+                .catch(() => {});
+            }}
+          />
+        ) : activeTab === "dashboard" ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
               <DashboardSummary
@@ -1714,14 +1921,14 @@ function App() {
               onBulkUpdate={handleBulkUpdate}
             />
           </div>
-        )}
+        ) /* end tasks tab */ }
 
         {/* ── FOOTER ── */}
         <footer className="mt-12 pt-6 border-t border-slate-800 text-center">
           <p className="text-slate-600 text-xs">
             FL MOVE — Bunnell Family Transition Dashboard &nbsp;·&nbsp;
             Justin &amp; Anna Bunnell &nbsp;·&nbsp;
-            Data stored locally in your browser &nbsp;·&nbsp;
+            Data synced to Cloudflare &nbsp;·&nbsp;
             <span className="text-slate-700">Use Export JSON to back up your data</span>
           </p>
         </footer>

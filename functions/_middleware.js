@@ -12,8 +12,8 @@
 // SHA-256 of "AnnaBunnell"
 const USERNAME_HASH = "7e6d73672bd53e111257e96711f32ae0be7f15e4849cfe00919bbb9a8532c5b3";
 
-// SHA-256 of "AdJbFl2026$#"
-const PASSWORD_HASH = "903c09fb5bed50bc6da8d0bd37253772785c44565d2aca85d065264a666e2c69";
+// SHA-256 of "AdJbFl2026$#"  (recomputed with literal $# — not bash-expanded)
+const PASSWORD_HASH = "90381bc33593a339398ad51dfa26492e1786c39eff1338450f981facea9bd9c2";
 
 // Independent HMAC signing secret for session cookies (not derived from the password hash)
 const COOKIE_SIGNING_SECRET = "cec230b292f37f03c58f8dfbc9e1b212810890e983513d2c0b8c439ebcfc7f9a";
