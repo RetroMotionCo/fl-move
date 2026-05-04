@@ -208,80 +208,82 @@ function generateSeedTasks() {
     { title: "Clear Blocked Items or Identify Next Decision", owner: "Both", priority: "High", category: "Florida Relocation", pathways: ALL },
     { title: "Record End-of-Day Notes", owner: "Both", priority: "Medium", category: "Health / Family / Life Admin", pathways: ALL }
   ];
-  daily.forEach((t, i) => tasks.push(createTask({ ...t, frequency: "Daily", sortOrder: i })));
+  // Daily tasks recur every day — due date = today
+  daily.forEach((t, i) => tasks.push(createTask({ ...t, frequency: "Daily", sortOrder: i, dueDate: "2026-05-04" })));
 
-  // ── WEEKLY ──
+  // Weekly tasks — first due end of this week, then rolling 7 days
+  const nextSun = "2026-05-10";
   const weekly = [
-    { title: "Review Florida Relocation Timeline", owner: "Both", priority: "Critical", category: "Florida Relocation", pathways: ALL },
-    { title: "Review Anna Job Pipeline", owner: "Anna", priority: "Critical", category: "Anna Career", pathways: ALL },
-    { title: "Review Justin Income Pipeline", owner: "Justin", priority: "High", category: "Justin Career", pathways: ["sell-retro", "keep-retro-sell-venetian", "sell-both"] },
-    { title: "Review RetroMotion Receivables, Debt & Active Projects", owner: "Justin", priority: "High", category: "RetroMotion", pathways: ["sell-retro", "keep-retro-sell-venetian"] },
-    { title: "Review Venetian Soda Lounge Sale/Close Progress", owner: "Both", priority: "High", category: "Venetian Soda Lounge", pathways: ["sell-venetian", "keep-retro-sell-venetian", "sell-both"] },
-    { title: "Review Venetian Beverages Debt/Liability Status", owner: "Justin", priority: "High", category: "Venetian Beverages", pathways: ["sell-venetian", "keep-retro-sell-venetian", "sell-both"] },
-    { title: "Review Vermont Home Strategy", owner: "Both", priority: "High", category: "Vermont Home", pathways: ALL },
-    { title: "Review Legal / CPA / Bankruptcy Questions", owner: "Both", priority: "Critical", category: "Legal / Debt / CPA", pathways: ALL },
-    { title: "Review Florida Housing & Rental Options", owner: "Both", priority: "High", category: "Florida Housing", pathways: ALL },
-    { title: "Review School Zones & Enrollment Requirements", owner: "Both", priority: "Medium", category: "Kids / Schools", pathways: ALL },
-    { title: "Update Family Budget Forecast", owner: "Both", priority: "Critical", category: "Budget / Cash Flow", pathways: ALL },
-    { title: "Decide Next Week's Top 5 Priorities", owner: "Both", priority: "High", category: "Florida Relocation", pathways: ALL }
+    { title: "Review Florida Relocation Timeline",                   owner: "Both",   priority: "Critical", category: "Florida Relocation",        pathways: ALL,                                                              dueDate: "2026-05-10" },
+    { title: "Review Anna Job Pipeline",                             owner: "Anna",   priority: "Critical", category: "Anna Career",               pathways: ALL,                                                              dueDate: "2026-05-10" },
+    { title: "Review Justin Income Pipeline",                        owner: "Justin", priority: "High",     category: "Justin Career",             pathways: ["sell-retro","keep-retro-sell-venetian","sell-both"],            dueDate: "2026-05-10" },
+    { title: "Review RetroMotion Receivables, Debt & Active Projects",owner:"Justin", priority: "High",    category: "RetroMotion",               pathways: ["sell-retro","keep-retro-sell-venetian"],                        dueDate: "2026-05-10" },
+    { title: "Review Venetian Soda Lounge Sale/Close Progress",      owner: "Both",   priority: "High",     category: "Venetian Soda Lounge",      pathways: ["sell-venetian","keep-retro-sell-venetian","sell-both"],         dueDate: "2026-05-10" },
+    { title: "Review Venetian Beverages Debt/Liability Status",      owner: "Justin", priority: "High",     category: "Venetian Beverages",        pathways: ["sell-venetian","keep-retro-sell-venetian","sell-both"],         dueDate: "2026-05-10" },
+    { title: "Review Vermont Home Strategy",                         owner: "Both",   priority: "High",     category: "Vermont Home",              pathways: ALL,                                                              dueDate: "2026-05-10" },
+    { title: "Review Legal / CPA / Bankruptcy Questions",            owner: "Both",   priority: "Critical", category: "Legal / Debt / CPA",        pathways: ALL,                                                              dueDate: "2026-05-10" },
+    { title: "Review Florida Housing & Rental Options",              owner: "Both",   priority: "High",     category: "Florida Housing",           pathways: ALL,                                                              dueDate: "2026-05-17" },
+    { title: "Review School Zones & Enrollment Requirements",        owner: "Both",   priority: "Medium",   category: "Kids / Schools",            pathways: ALL,                                                              dueDate: "2026-05-17" },
+    { title: "Update Family Budget Forecast",                        owner: "Both",   priority: "Critical", category: "Budget / Cash Flow",        pathways: ALL,                                                              dueDate: "2026-05-10" },
+    { title: "Decide Next Week's Top 5 Priorities",                  owner: "Both",   priority: "High",     category: "Florida Relocation",        pathways: ALL,                                                              dueDate: "2026-05-10" },
   ];
   weekly.forEach((t, i) => tasks.push(createTask({ ...t, frequency: "Weekly", sortOrder: i })));
 
-  // ── MONTHLY ──
+  // Monthly tasks — first due end of May, then June, July
   const monthly = [
-    { title: "Update Full Household Net Worth / Debt Picture", owner: "Both", priority: "Critical", category: "Budget / Cash Flow", pathways: ALL },
-    { title: "Update Business Balance Sheet Snapshot", owner: "Justin", priority: "High", category: "RetroMotion", pathways: ALL },
-    { title: "Review Whether Selected Pathway Still Makes Sense", owner: "Both", priority: "Critical", category: "Florida Relocation", pathways: ALL },
-    { title: "Review Florida Move Readiness", owner: "Both", priority: "Critical", category: "Florida Relocation", pathways: ALL },
-    { title: "Review Cash Reserves & Debt Exposure", owner: "Both", priority: "Critical", category: "Legal / Debt / CPA", pathways: ALL },
-    { title: "Review Whether Renting First Remains Preferred", owner: "Both", priority: "High", category: "Florida Housing", pathways: ALL },
-    { title: "Review Anna Job-Compensation Targets", owner: "Anna", priority: "High", category: "Anna Career", pathways: ALL },
-    { title: "Review Justin W2 Transition Progress", owner: "Justin", priority: "High", category: "Justin Career", pathways: ["sell-retro", "keep-retro-sell-venetian", "sell-both"] },
-    { title: "Review Business Sale/Closure Timeline", owner: "Both", priority: "High", category: "RetroMotion", pathways: ALL },
-    { title: "Review Family Stress/Load & Adjust Pace", owner: "Both", priority: "High", category: "Health / Family / Life Admin", pathways: ALL },
-    { title: "Archive Completed Tasks & Export Monthly Report", owner: "Both", priority: "Medium", category: "Florida Relocation", pathways: ALL }
+    { title: "Update Full Household Net Worth / Debt Picture",       owner: "Both",   priority: "Critical", category: "Budget / Cash Flow",        pathways: ALL, dueDate: "2026-05-31" },
+    { title: "Update Business Balance Sheet Snapshot",               owner: "Justin", priority: "High",     category: "RetroMotion",               pathways: ALL, dueDate: "2026-05-31" },
+    { title: "Review Whether Selected Pathway Still Makes Sense",    owner: "Both",   priority: "Critical", category: "Florida Relocation",        pathways: ALL, dueDate: "2026-05-31" },
+    { title: "Review Florida Move Readiness",                        owner: "Both",   priority: "Critical", category: "Florida Relocation",        pathways: ALL, dueDate: "2026-05-31" },
+    { title: "Review Cash Reserves & Debt Exposure",                 owner: "Both",   priority: "Critical", category: "Legal / Debt / CPA",        pathways: ALL, dueDate: "2026-05-31" },
+    { title: "Review Whether Renting First Remains Preferred",       owner: "Both",   priority: "High",     category: "Florida Housing",           pathways: ALL, dueDate: "2026-06-30" },
+    { title: "Review Anna Job-Compensation Targets",                 owner: "Anna",   priority: "High",     category: "Anna Career",               pathways: ALL, dueDate: "2026-06-01" },
+    { title: "Review Justin W2 Transition Progress",                 owner: "Justin", priority: "High",     category: "Justin Career",             pathways: ["sell-retro","keep-retro-sell-venetian","sell-both"], dueDate: "2026-06-01" },
+    { title: "Review Business Sale/Closure Timeline",                owner: "Both",   priority: "High",     category: "RetroMotion",               pathways: ALL, dueDate: "2026-06-01" },
+    { title: "Review Family Stress/Load & Adjust Pace",              owner: "Both",   priority: "High",     category: "Health / Family / Life Admin",pathways: ALL, dueDate: "2026-05-31" },
+    { title: "Archive Completed Tasks & Export Monthly Report",      owner: "Both",   priority: "Medium",   category: "Florida Relocation",        pathways: ALL, dueDate: "2026-05-31" },
   ];
   monthly.forEach((t, i) => tasks.push(createTask({ ...t, frequency: "Monthly", sortOrder: i })));
 
-  // ── PATHWAY-SPECIFIC ONE-TIME ──
+  // One-time tasks — sequenced by urgency and logical order starting from today
   const oneTime = [
-    // Pathway 1
-    { title: "Build RetroMotion Asset List", owner: "Justin", priority: "Critical", category: "RetroMotion", pathways: ["sell-retro"] },
-    { title: "List Active Contracts & Client Obligations", owner: "Justin", priority: "Critical", category: "RetroMotion", pathways: ["sell-retro"] },
-    { title: "Identify Transferable Brand/IP/Assets", owner: "Justin", priority: "High", category: "RetroMotion", pathways: ["sell-retro"] },
-    { title: "Review RetroMotion Liabilities", owner: "Justin", priority: "Critical", category: "Legal / Debt / CPA", pathways: ["sell-retro"] },
-    { title: "Speak with CPA/Attorney About Closure or Sale", owner: "Both", priority: "Critical", category: "Legal / Debt / CPA", pathways: ["sell-retro"] },
-    { title: "Create Client Transition Plan", owner: "Justin", priority: "High", category: "RetroMotion", pathways: ["sell-retro"] },
-    { title: "Build Justin W2 Job Search Plan", owner: "Justin", priority: "Critical", category: "Justin Career", pathways: ["sell-retro"] },
-    { title: "Preserve Usable Portfolio Materials", owner: "Justin", priority: "Medium", category: "RetroMotion", pathways: ["sell-retro"] },
-    // Pathway 2
-    { title: "Prepare Venetian Soda Lounge Sale Package", owner: "Both", priority: "Critical", category: "Venetian Soda Lounge", pathways: ["sell-venetian"] },
-    { title: "Create Venetian Asset Inventory", owner: "Both", priority: "High", category: "Venetian Soda Lounge", pathways: ["sell-venetian"] },
-    { title: "Identify Buyer Types for Venetian", owner: "Both", priority: "High", category: "Venetian Soda Lounge", pathways: ["sell-venetian"] },
-    { title: "Clean Up Venetian Books & Tax Obligations", owner: "Justin", priority: "Critical", category: "Legal / Debt / CPA", pathways: ["sell-venetian"] },
-    { title: "Decide Sell vs Close Threshold", owner: "Both", priority: "Critical", category: "Venetian Soda Lounge", pathways: ["sell-venetian"] },
-    { title: "Create Venetian Closure Checklist", owner: "Both", priority: "High", category: "Venetian Soda Lounge", pathways: ["sell-venetian"] },
-    { title: "Manage Staff/Vendor Communication", owner: "Both", priority: "High", category: "Venetian Soda Lounge", pathways: ["sell-venetian"] },
-    { title: "Resolve Venetian Beverages Remaining Liabilities", owner: "Justin", priority: "Critical", category: "Venetian Beverages", pathways: ["sell-venetian"] },
-    { title: "Keep RetroMotion Lean & Portable", owner: "Justin", priority: "High", category: "RetroMotion", pathways: ["sell-venetian"] },
-    // Pathway 3 (preferred)
-    { title: "Stabilize or Close Venetian First", owner: "Both", priority: "Critical", category: "Venetian Soda Lounge", pathways: ["keep-retro-sell-venetian"] },
-    { title: "Define RetroMotion Low-Overhead Operating Model", owner: "Justin", priority: "Critical", category: "RetroMotion", pathways: ["keep-retro-sell-venetian"] },
-    { title: "Build Justin Florida W2 Target List", owner: "Justin", priority: "Critical", category: "Justin Career", pathways: ["keep-retro-sell-venetian"] },
-    { title: "Build Anna Florida Healthcare Leadership Pipeline", owner: "Anna", priority: "Critical", category: "Anna Career", pathways: ["keep-retro-sell-venetian"] },
-    { title: "Protect Vermont Home Equity", owner: "Both", priority: "Critical", category: "Vermont Home", pathways: ["keep-retro-sell-venetian"] },
-    { title: "Build Florida Rental-First Plan", owner: "Both", priority: "High", category: "Florida Housing", pathways: ["keep-retro-sell-venetian"] },
-    { title: "Update Debt Repayment Strategy", owner: "Both", priority: "Critical", category: "Legal / Debt / CPA", pathways: ["keep-retro-sell-venetian"] },
-    { title: "Reduce Operational Drag Before Relocation", owner: "Both", priority: "High", category: "RetroMotion", pathways: ["keep-retro-sell-venetian"] },
-    // Pathway 4
-    { title: "Create Full Business Wind-Down Master Checklist", owner: "Both", priority: "Critical", category: "RetroMotion", pathways: ["sell-both"] },
-    { title: "Review All Liabilities with Attorney/CPA", owner: "Both", priority: "Critical", category: "Legal / Debt / CPA", pathways: ["sell-both"] },
-    { title: "Identify Business-Only vs Personal Debt", owner: "Both", priority: "Critical", category: "Legal / Debt / CPA", pathways: ["sell-both"] },
-    { title: "Protect Vermont Home Equity Before Sale", owner: "Both", priority: "Critical", category: "Vermont Home", pathways: ["sell-both"] },
-    { title: "Build Florida Rental Bridge Budget", owner: "Both", priority: "Critical", category: "Budget / Cash Flow", pathways: ["sell-both"] },
-    { title: "Build Justin W2 Transition Roadmap", owner: "Justin", priority: "Critical", category: "Justin Career", pathways: ["sell-both"] },
-    { title: "Archive/Sell/Liquidate Business Assets", owner: "Both", priority: "High", category: "RetroMotion", pathways: ["sell-both"] },
-    { title: "Close Accounts, Licenses, Payroll, Taxes, Vendors", owner: "Both", priority: "High", category: "Legal / Debt / CPA", pathways: ["sell-both"] }
+    // Pathway 1 — Sell/Close Retro
+    { title: "Build RetroMotion Asset List",                    owner: "Justin", priority: "Critical", category: "RetroMotion",          pathways: ["sell-retro"],                   dueDate: "2026-05-11" },
+    { title: "List Active Contracts & Client Obligations",      owner: "Justin", priority: "Critical", category: "RetroMotion",          pathways: ["sell-retro"],                   dueDate: "2026-05-11" },
+    { title: "Identify Transferable Brand/IP/Assets",           owner: "Justin", priority: "High",     category: "RetroMotion",          pathways: ["sell-retro"],                   dueDate: "2026-05-18" },
+    { title: "Review RetroMotion Liabilities",                  owner: "Justin", priority: "Critical", category: "Legal / Debt / CPA",   pathways: ["sell-retro"],                   dueDate: "2026-05-14" },
+    { title: "Speak with CPA/Attorney About Closure or Sale",   owner: "Both",   priority: "Critical", category: "Legal / Debt / CPA",   pathways: ["sell-retro"],                   dueDate: "2026-05-20" },
+    { title: "Create Client Transition Plan",                   owner: "Justin", priority: "High",     category: "RetroMotion",          pathways: ["sell-retro"],                   dueDate: "2026-05-25" },
+    { title: "Build Justin W2 Job Search Plan",                 owner: "Justin", priority: "Critical", category: "Justin Career",        pathways: ["sell-retro"],                   dueDate: "2026-05-14" },
+    { title: "Preserve Usable Portfolio Materials",             owner: "Justin", priority: "Medium",   category: "RetroMotion",          pathways: ["sell-retro"],                   dueDate: "2026-06-01" },
+    // Pathway 2 — Sell/Close Venetian
+    { title: "Prepare Venetian Soda Lounge Sale Package",       owner: "Both",   priority: "Critical", category: "Venetian Soda Lounge", pathways: ["sell-venetian"],                dueDate: "2026-05-20" },
+    { title: "Create Venetian Asset Inventory",                 owner: "Both",   priority: "High",     category: "Venetian Soda Lounge", pathways: ["sell-venetian"],                dueDate: "2026-05-15" },
+    { title: "Identify Buyer Types for Venetian",               owner: "Both",   priority: "High",     category: "Venetian Soda Lounge", pathways: ["sell-venetian"],                dueDate: "2026-05-20" },
+    { title: "Clean Up Venetian Books & Tax Obligations",       owner: "Justin", priority: "Critical", category: "Legal / Debt / CPA",   pathways: ["sell-venetian"],                dueDate: "2026-05-25" },
+    { title: "Decide Sell vs Close Threshold",                  owner: "Both",   priority: "Critical", category: "Venetian Soda Lounge", pathways: ["sell-venetian"],                dueDate: "2026-05-31" },
+    { title: "Create Venetian Closure Checklist",               owner: "Both",   priority: "High",     category: "Venetian Soda Lounge", pathways: ["sell-venetian"],                dueDate: "2026-06-07" },
+    { title: "Manage Staff/Vendor Communication",               owner: "Both",   priority: "High",     category: "Venetian Soda Lounge", pathways: ["sell-venetian"],                dueDate: "2026-06-07" },
+    { title: "Resolve Venetian Beverages Remaining Liabilities",owner: "Justin", priority: "Critical", category: "Venetian Beverages",   pathways: ["sell-venetian"],                dueDate: "2026-06-15" },
+    { title: "Keep RetroMotion Lean & Portable",                owner: "Justin", priority: "High",     category: "RetroMotion",          pathways: ["sell-venetian"],                dueDate: "2026-05-31" },
+    // Pathway 3 — Keep Retro + Close Venetian (PREFERRED)
+    { title: "Stabilize or Close Venetian First",               owner: "Both",   priority: "Critical", category: "Venetian Soda Lounge", pathways: ["keep-retro-sell-venetian"],     dueDate: "2026-05-31" },
+    { title: "Define RetroMotion Low-Overhead Operating Model", owner: "Justin", priority: "Critical", category: "RetroMotion",          pathways: ["keep-retro-sell-venetian"],     dueDate: "2026-05-18" },
+    { title: "Build Justin Florida W2 Target List",             owner: "Justin", priority: "Critical", category: "Justin Career",        pathways: ["keep-retro-sell-venetian"],     dueDate: "2026-05-11" },
+    { title: "Build Anna Florida Healthcare Leadership Pipeline",owner: "Anna",   priority: "Critical", category: "Anna Career",          pathways: ["keep-retro-sell-venetian"],     dueDate: "2026-05-08" },
+    { title: "Protect Vermont Home Equity",                     owner: "Both",   priority: "Critical", category: "Vermont Home",         pathways: ["keep-retro-sell-venetian"],     dueDate: "2026-05-25" },
+    { title: "Build Florida Rental-First Plan",                 owner: "Both",   priority: "High",     category: "Florida Housing",      pathways: ["keep-retro-sell-venetian"],     dueDate: "2026-06-01" },
+    { title: "Update Debt Repayment Strategy",                  owner: "Both",   priority: "Critical", category: "Legal / Debt / CPA",   pathways: ["keep-retro-sell-venetian"],     dueDate: "2026-05-18" },
+    { title: "Reduce Operational Drag Before Relocation",       owner: "Both",   priority: "High",     category: "RetroMotion",          pathways: ["keep-retro-sell-venetian"],     dueDate: "2026-06-01" },
+    // Pathway 4 — Sell/Close Both
+    { title: "Create Full Business Wind-Down Master Checklist", owner: "Both",   priority: "Critical", category: "RetroMotion",          pathways: ["sell-both"],                    dueDate: "2026-05-11" },
+    { title: "Review All Liabilities with Attorney/CPA",        owner: "Both",   priority: "Critical", category: "Legal / Debt / CPA",   pathways: ["sell-both"],                    dueDate: "2026-05-20" },
+    { title: "Identify Business-Only vs Personal Debt",         owner: "Both",   priority: "Critical", category: "Legal / Debt / CPA",   pathways: ["sell-both"],                    dueDate: "2026-05-18" },
+    { title: "Protect Vermont Home Equity Before Sale",         owner: "Both",   priority: "Critical", category: "Vermont Home",         pathways: ["sell-both"],                    dueDate: "2026-05-25" },
+    { title: "Build Florida Rental Bridge Budget",              owner: "Both",   priority: "Critical", category: "Budget / Cash Flow",   pathways: ["sell-both"],                    dueDate: "2026-05-18" },
+    { title: "Build Justin W2 Transition Roadmap",              owner: "Justin", priority: "Critical", category: "Justin Career",        pathways: ["sell-both"],                    dueDate: "2026-05-14" },
+    { title: "Archive/Sell/Liquidate Business Assets",          owner: "Both",   priority: "High",     category: "RetroMotion",          pathways: ["sell-both"],                    dueDate: "2026-07-01" },
+    { title: "Close Accounts, Licenses, Payroll, Taxes, Vendors",owner:"Both",  priority: "High",     category: "Legal / Debt / CPA",   pathways: ["sell-both"],                    dueDate: "2026-07-15" },
   ];
   oneTime.forEach((t, i) => tasks.push(createTask({ ...t, frequency: "One-time", sortOrder: i })));
 
