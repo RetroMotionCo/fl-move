@@ -1561,26 +1561,42 @@ function CalendarView({ tasks, milestones, onAddMilestone, onDeleteMilestone, on
   const [anchor, setAnchor] = useState({ year: todayDate.getFullYear(), month: todayDate.getMonth() });
   const [selectedDay, setSelectedDay] = useState(null);
   const [showMilestoneForm, setShowMilestoneForm] = useState(false);
-  const [editingMilestone, setEditingMilestone] = useState(null); // null = new, object = edit
+  const [editingMilestone, setEditingMilestone] = useState(null);
   const [milestoneForm, setMilestoneForm] = useState({ title: "", date: today, description: "", owner: "Both", status: "on-track" });
 
-  // Build lookup: date-string → { tasks: [], milestones: [] }
+  // Load checklist items (from cloud) so their due dates appear on the calendar
+  const [checklistItems, setChecklistItems] = useState([]);
+  useEffect(() => {
+    fetch("/api/checklist", { credentials: "same-origin" })
+      .then(r => r.json())
+      .then(cols => {
+        if (!Array.isArray(cols)) return;
+        const items = [];
+        cols.forEach(col => col.sections.forEach(sec => sec.items.forEach(item => {
+          if (item.dueDate || item.startDate) {
+            items.push({ ...item, _colLabel: col.label, _secTitle: sec.title });
+          }
+        })));
+        setChecklistItems(items);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Build lookup: date-string → { tasks: [], milestones: [], checklist: [] }
   const dayData = useMemo(() => {
     const map = {};
+    const ensure = (d) => { if (!map[d]) map[d] = { tasks: [], milestones: [], checklist: [] }; };
     tasks.forEach(t => {
-      if (t.dueDate) {
-        if (!map[t.dueDate]) map[t.dueDate] = { tasks: [], milestones: [] };
-        map[t.dueDate].tasks.push(t);
-      }
+      if (t.dueDate) { ensure(t.dueDate); map[t.dueDate].tasks.push(t); }
     });
     (milestones || []).forEach(m => {
-      if (m.date) {
-        if (!map[m.date]) map[m.date] = { tasks: [], milestones: [] };
-        map[m.date].milestones.push(m);
-      }
+      if (m.date) { ensure(m.date); map[m.date].milestones.push(m); }
+    });
+    checklistItems.forEach(ci => {
+      if (ci.dueDate) { ensure(ci.dueDate); map[ci.dueDate].checklist.push(ci); }
     });
     return map;
-  }, [tasks, milestones]);
+  }, [tasks, milestones, checklistItems]);
 
   function navigate(delta) {
     if (viewMode === "Week") {
@@ -1658,12 +1674,17 @@ function CalendarView({ tasks, milestones, onAddMilestone, onDeleteMilestone, on
         </div>
       );
     }
-    // Task dots only
-    const dots = d.tasks.slice(0, 5).map(t => OWNER_COLORS[t.owner]?.hex || "#8b5cf6");
+    // Task dots + checklist dots
+    const clOwner = { Justin: "#3b82f6", Anna: "#ec4899", Both: "#8b5cf6" };
+    const dots = [
+      ...d.tasks.slice(0, 3).map(t => OWNER_COLORS[t.owner]?.hex || "#8b5cf6"),
+      ...(d.checklist || []).slice(0, 2).map(ci => "#14b8a6"), // teal for checklist
+    ].slice(0, 5);
+    const totalExtra = d.tasks.length + (d.checklist || []).length - dots.length;
     return (
       <div className="flex flex-wrap gap-px mt-0.5 justify-center">
         {dots.map((color, i) => <div key={i} className="rounded-full" style={{ width: 5, height: 5, backgroundColor: color }} />)}
-        {d.tasks.length > 5 && <span style={{fontSize:"7px",color:"#64748b"}}>+{d.tasks.length-5}</span>}
+        {totalExtra > 0 && <span style={{fontSize:"7px",color:"#64748b"}}>+{totalExtra}</span>}
       </div>
     );
   }
@@ -1794,7 +1815,7 @@ function CalendarView({ tasks, milestones, onAddMilestone, onDeleteMilestone, on
           </div>
         </div>
 
-        {data.milestones.length === 0 && data.tasks.length === 0 && (
+        {data.milestones.length === 0 && data.tasks.length === 0 && (data.checklist || []).length === 0 && (
           <p className="text-slate-500 text-sm">Nothing scheduled. Add a milestone or set task due dates here.</p>
         )}
 
@@ -1850,6 +1871,31 @@ function CalendarView({ tasks, milestones, onAddMilestone, onDeleteMilestone, on
             </div>
           );
         })}
+
+        {/* Checklist items with due dates on this day */}
+        {(data.checklist || []).length > 0 && (
+          <div className="mt-2 pt-2 border-t border-slate-700">
+            <p className="text-xs text-teal-400 font-bold uppercase tracking-wide mb-1.5">✅ Move Checklist</p>
+            {data.checklist.map(ci => {
+              const ac = ci.assignee === "Justin" ? "text-blue-400" : ci.assignee === "Anna" ? "text-pink-400" : "text-purple-400";
+              return (
+                <div key={ci.id} className={`bg-slate-700/40 border border-slate-600 rounded-lg p-2.5 mb-1.5 ${ci.done ? "opacity-40" : ""}`}>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center ${ci.done ? "bg-emerald-600 border-emerald-600" : "border-slate-500"}`}>
+                      {ci.done && <span className="text-white leading-none" style={{fontSize:"8px"}}>✓</span>}
+                    </div>
+                    <span className={`text-sm ${ci.done ? "line-through text-slate-500" : "text-slate-200"}`}>{ci.text}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mt-1 pl-5">
+                    <span className={`text-xs font-medium ${ac}`}>{ci.assignee}</span>
+                    <span className="text-xs text-slate-500">{ci._colLabel}</span>
+                    {ci.notes && <span className="text-xs text-slate-600">📝 has notes</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   }
@@ -2090,7 +2136,13 @@ function CalendarView({ tasks, milestones, onAddMilestone, onDeleteMilestone, on
 function uid() { return Math.random().toString(36).slice(2, 10); }
 
 function makeItems(list) {
-  return list.map(text => ({ id: uid(), text, done: false }));
+  return list.map(text => ({
+    id: uid(), text, done: false,
+    dueDate: null, startDate: null,
+    status: "not-started", // "not-started" | "started" | "in-progress"
+    assignee: "Both",      // "Justin" | "Anna" | "Both"
+    notes: "",
+  }));
 }
 
 function generateSeedChecklist() {
@@ -2519,7 +2571,7 @@ function MoveChecklist({ tasks }) {
     }, 1000);
   }
 
-  function toggleItem(colId, sectionId, itemId) {
+  function updateItem(colId, sectionId, itemId, updates) {
     setColumns(prev => {
       const next = prev.map(col => {
         if (col.id !== colId) return col;
@@ -2530,7 +2582,7 @@ function MoveChecklist({ tasks }) {
             return {
               ...sec,
               items: sec.items.map(item =>
-                item.id === itemId ? { ...item, done: !item.done } : item
+                item.id === itemId ? { ...item, ...updates } : item
               ),
             };
           }),
@@ -2550,7 +2602,10 @@ function MoveChecklist({ tasks }) {
           ...col,
           sections: col.sections.map(sec => {
             if (sec.id !== sectionId) return sec;
-            return { ...sec, items: [...sec.items, { id: uid(), text: text.trim(), done: false }] };
+            return { ...sec, items: [...sec.items, {
+              id: uid(), text: text.trim(), done: false,
+              dueDate: null, startDate: null, status: "not-started", assignee: "Both", notes: "",
+            }] };
           }),
         };
       });
@@ -2662,7 +2717,7 @@ function MoveChecklist({ tasks }) {
               secDone={secDone}
               secTotal={secTotal}
               colId={col.id}
-              onToggle={(itemId) => toggleItem(col.id, sec.id, itemId)}
+              onUpdateItem={(itemId, updates) => updateItem(col.id, sec.id, itemId, updates)}
               onAdd={(text) => addItem(col.id, sec.id, text)}
               onDelete={(itemId) => deleteItem(col.id, sec.id, itemId)}
             />
@@ -2673,10 +2728,16 @@ function MoveChecklist({ tasks }) {
   );
 }
 
-function SectionPanel({ section, filteredItems, secDone, secTotal, colId, onToggle, onAdd, onDelete }) {
+const CL_STATUS_STYLES = {
+  "not-started": { label: "Not Started", bg: "bg-slate-600", text: "text-slate-200" },
+  "started":     { label: "Started",     bg: "bg-sky-700",   text: "text-sky-100" },
+  "in-progress": { label: "In Progress", bg: "bg-amber-700", text: "text-amber-100" },
+};
+
+function SectionPanel({ section, filteredItems, secDone, secTotal, colId, onUpdateItem, onAdd, onDelete }) {
   const [collapsed, setCollapsed] = useState(false);
   const [newText, setNewText]     = useState("");
-  const [hoverId, setHoverId]     = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
   const pct = secTotal > 0 ? Math.round((secDone / secTotal) * 100) : 0;
   const allDone = secDone === secTotal && secTotal > 0;
 
@@ -2703,23 +2764,120 @@ function SectionPanel({ section, filteredItems, secDone, secTotal, colId, onTogg
 
       {!collapsed && (
         <div className="px-4 pb-3">
-          <div className="space-y-1 mb-3">
-            {filteredItems.map(item => (
-              <div key={item.id} className="flex items-start gap-2 group py-1 rounded hover:bg-slate-700/30 px-1"
-                onMouseEnter={() => setHoverId(item.id)} onMouseLeave={() => setHoverId(null)}>
-                <button onClick={() => onToggle(item.id)}
-                  className={`mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all
-                    ${item.done ? "bg-emerald-600 border-emerald-600" : "border-slate-500 hover:border-teal-400"}`}>
-                  {item.done && <span className="text-white leading-none" style={{fontSize:"9px"}}>✓</span>}
-                </button>
-                <span className={`text-sm flex-1 leading-snug ${item.done ? "line-through text-slate-500" : "text-slate-200"}`}>
-                  {item.text}
-                </span>
-                {hoverId === item.id && (
-                  <button onClick={() => onDelete(item.id)} className="text-slate-600 hover:text-red-400 text-xs shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
-                )}
-              </div>
-            ))}
+          <div className="space-y-0.5 mb-3">
+            {filteredItems.map(item => {
+              const isExpanded = expandedId === item.id;
+              const st = CL_STATUS_STYLES[item.status] || CL_STATUS_STYLES["not-started"];
+              const hasDates = item.dueDate || item.startDate;
+              const hasNotes = item.notes;
+              const ownerColor = item.assignee === "Justin" ? "text-blue-400" : item.assignee === "Anna" ? "text-pink-400" : "text-purple-400";
+
+              return (
+                <div key={item.id} className={`rounded-lg border transition-all ${isExpanded ? "border-slate-600 bg-slate-700/30" : "border-transparent hover:bg-slate-700/20"}`}>
+                  {/* Main row */}
+                  <div className="flex items-start gap-2 py-1.5 px-1.5 group">
+                    {/* Done checkbox */}
+                    <button onClick={() => onUpdateItem(item.id, { done: !item.done })}
+                      className={`mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all
+                        ${item.done ? "bg-emerald-600 border-emerald-600" : "border-slate-500 hover:border-teal-400"}`}>
+                      {item.done && <span className="text-white leading-none" style={{fontSize:"9px"}}>✓</span>}
+                    </button>
+
+                    {/* Title — click to expand */}
+                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : item.id)}>
+                      <span className={`text-sm leading-snug ${item.done ? "line-through text-slate-500" : "text-slate-200"}`}>
+                        {item.text}
+                      </span>
+                      {/* Inline badges */}
+                      <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                        {item.assignee && <span className={`text-xs font-medium ${ownerColor}`}>{item.assignee}</span>}
+                        {item.status && item.status !== "not-started" && (
+                          <span className={`text-xs px-1.5 py-0 rounded ${st.bg} ${st.text}`}>{st.label}</span>
+                        )}
+                        {item.dueDate && (
+                          <span className={`text-xs ${item.dueDate < todayISO() && !item.done ? "text-red-400 font-semibold" : "text-slate-500"}`}>
+                            Due: {formatDate(item.dueDate)}
+                          </span>
+                        )}
+                        {item.startDate && <span className="text-xs text-slate-500">Start: {formatDate(item.startDate)}</span>}
+                        {hasNotes && <span className="text-xs text-slate-600">📝</span>}
+                      </div>
+                    </div>
+
+                    {/* Expand arrow + delete */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                        className="text-slate-600 hover:text-slate-300 text-xs px-1">{isExpanded ? "▼" : "▶"}</button>
+                      <button onClick={() => onDelete(item.id)}
+                        className="text-slate-700 hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                    </div>
+                  </div>
+
+                  {/* Expanded detail fields */}
+                  {isExpanded && (
+                    <div className="px-7 pb-3 pt-1 space-y-2.5 border-t border-slate-700/50 mt-1">
+                      {/* Status */}
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wide">Status</label>
+                        <div className="flex gap-1.5">
+                          {Object.entries(CL_STATUS_STYLES).map(([key, s]) => (
+                            <button key={key}
+                              onClick={() => onUpdateItem(item.id, { status: key })}
+                              className={`text-xs px-2.5 py-1 rounded border font-medium transition-all
+                                ${item.status === key ? `${s.bg} ${s.text} border-transparent` : "border-slate-600 text-slate-400 hover:border-slate-400"}`}>
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Assignee */}
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wide">Assignee</label>
+                        <div className="flex gap-1.5">
+                          {["Justin", "Anna", "Both"].map(a => {
+                            const ac = a === "Justin" ? "bg-blue-700 text-blue-100" : a === "Anna" ? "bg-pink-700 text-pink-100" : "bg-purple-700 text-purple-100";
+                            return (
+                              <button key={a}
+                                onClick={() => onUpdateItem(item.id, { assignee: a })}
+                                className={`text-xs px-2.5 py-1 rounded border font-medium transition-all
+                                  ${item.assignee === a ? `${ac} border-transparent` : "border-slate-600 text-slate-400 hover:border-slate-400"}`}>
+                                {a}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Dates */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wide">Start Date</label>
+                          <input type="date" value={item.startDate || ""}
+                            onChange={e => onUpdateItem(item.id, { startDate: e.target.value || null })}
+                            className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:border-teal-500" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wide">Due Date</label>
+                          <input type="date" value={item.dueDate || ""}
+                            onChange={e => onUpdateItem(item.id, { dueDate: e.target.value || null })}
+                            className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:border-teal-500" />
+                        </div>
+                      </div>
+
+                      {/* Notes */}
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wide">Notes</label>
+                        <textarea value={item.notes || ""} rows={2}
+                          onChange={e => onUpdateItem(item.id, { notes: e.target.value })}
+                          placeholder="Add notes…"
+                          className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:border-teal-500 placeholder-slate-600 resize-none" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {/* Add item */}
