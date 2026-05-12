@@ -2731,19 +2731,98 @@ function MoveChecklist({ tasks }) {
 }
 
 // ── Nested sub-checklist for Move Checklist items ──
+// Reusable editable checklist row — used for both subtasks and sub-subtasks
+function EditableCheckRow({ item, onToggle, onUpdate, onDelete, depth = 0, children }) {
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState(item.text);
+
+  function save() {
+    if (editText.trim() && editText.trim() !== item.text) {
+      onUpdate(item.id, { text: editText.trim() });
+    }
+    setEditing(false);
+  }
+
+  return (
+    <div style={{ paddingLeft: depth * 16 }}>
+      <div className="flex items-start gap-2 group py-0.5 rounded hover:bg-slate-700/20 px-1">
+        <button onClick={() => onToggle(item.id)}
+          className={`mt-0.5 w-3.5 h-3.5 rounded border-2 flex items-center justify-center shrink-0 transition-all
+            ${item.done ? "bg-emerald-600 border-emerald-600" : "border-slate-500 hover:border-teal-400"}`}>
+          {item.done && <span className="text-white leading-none" style={{fontSize:"8px"}}>✓</span>}
+        </button>
+
+        {editing ? (
+          <input autoFocus value={editText} onChange={e => setEditText(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") save(); if (e.key === "Escape") { setEditText(item.text); setEditing(false); } }}
+            onBlur={save}
+            className="flex-1 bg-slate-900 border border-teal-600 text-slate-200 text-xs px-2 py-0.5 rounded outline-none" />
+        ) : (
+          <span
+            onDoubleClick={() => { setEditText(item.text); setEditing(true); }}
+            className={`text-xs flex-1 leading-snug cursor-text ${item.done ? "line-through text-slate-500" : "text-slate-300"}`}>
+            {item.text}
+          </span>
+        )}
+
+        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={() => { setEditText(item.text); setEditing(true); }}
+            className="text-slate-600 hover:text-teal-400 text-xs px-1" title="Edit">✎</button>
+          <button onClick={() => onDelete(item.id)}
+            className="text-slate-700 hover:text-red-400 text-xs px-1" title="Delete">✕</button>
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function ChecklistSubtasks({ subtasks, onChange }) {
   const [newText, setNewText] = useState("");
+  const [newSubSubText, setNewSubSubText] = useState({}); // { [subtaskId]: string }
 
   function toggle(id) {
     onChange(subtasks.map(s => s.id === id ? { ...s, done: !s.done } : s));
+  }
+  function update(id, updates) {
+    onChange(subtasks.map(s => s.id === id ? { ...s, ...updates } : s));
   }
   function remove(id) {
     onChange(subtasks.filter(s => s.id !== id));
   }
   function add() {
     if (!newText.trim()) return;
-    onChange([...subtasks, { id: uid(), text: newText.trim(), done: false }]);
+    onChange([...subtasks, { id: uid(), text: newText.trim(), done: false, children: [] }]);
     setNewText("");
+  }
+
+  // Sub-subtask handlers
+  function toggleChild(parentId, childId) {
+    onChange(subtasks.map(s => {
+      if (s.id !== parentId) return s;
+      return { ...s, children: (s.children || []).map(c => c.id === childId ? { ...c, done: !c.done } : c) };
+    }));
+  }
+  function updateChild(parentId, childId, updates) {
+    onChange(subtasks.map(s => {
+      if (s.id !== parentId) return s;
+      return { ...s, children: (s.children || []).map(c => c.id === childId ? { ...c, ...updates } : c) };
+    }));
+  }
+  function removeChild(parentId, childId) {
+    onChange(subtasks.map(s => {
+      if (s.id !== parentId) return s;
+      return { ...s, children: (s.children || []).filter(c => c.id !== childId) };
+    }));
+  }
+  function addChild(parentId) {
+    const text = (newSubSubText[parentId] || "").trim();
+    if (!text) return;
+    onChange(subtasks.map(s => {
+      if (s.id !== parentId) return s;
+      return { ...s, children: [...(s.children || []), { id: uid(), text, done: false }] };
+    }));
+    setNewSubSubText(prev => ({ ...prev, [parentId]: "" }));
   }
 
   const doneCount = subtasks.filter(s => s.done).length;
@@ -2755,22 +2834,45 @@ function ChecklistSubtasks({ subtasks, onChange }) {
         {subtasks.length > 0 && (
           <span className="text-xs text-slate-500">{doneCount}/{subtasks.length}</span>
         )}
+        <span className="text-xs text-slate-600 italic">double-click to edit</span>
       </div>
 
       {subtasks.length > 0 && (
-        <div className="space-y-0.5 mb-2 pl-1">
-          {subtasks.map(s => (
-            <div key={s.id} className="flex items-center gap-2 group py-0.5">
-              <button onClick={() => toggle(s.id)}
-                className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center shrink-0 transition-all
-                  ${s.done ? "bg-emerald-600 border-emerald-600" : "border-slate-500 hover:border-teal-400"}`}>
-                {s.done && <span className="text-white leading-none" style={{fontSize:"8px"}}>✓</span>}
-              </button>
-              <span className={`text-xs flex-1 ${s.done ? "line-through text-slate-500" : "text-slate-300"}`}>{s.text}</span>
-              <button onClick={() => remove(s.id)}
-                className="text-slate-700 hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity shrink-0">✕</button>
-            </div>
-          ))}
+        <div className="mb-2 pl-0.5">
+          {subtasks.map(s => {
+            const kids = s.children || [];
+            const kidsDone = kids.filter(c => c.done).length;
+            return (
+              <EditableCheckRow key={s.id} item={s} depth={0}
+                onToggle={toggle} onUpdate={(id, u) => update(id, u)} onDelete={remove}>
+
+                {/* Sub-subtasks */}
+                {kids.length > 0 && (
+                  <div className="ml-5 border-l border-slate-700 pl-1 mt-0.5">
+                    {kids.map(c => (
+                      <EditableCheckRow key={c.id} item={c} depth={0}
+                        onToggle={(id) => toggleChild(s.id, id)}
+                        onUpdate={(id, u) => updateChild(s.id, id, u)}
+                        onDelete={(id) => removeChild(s.id, id)}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Add sub-subtask */}
+                <div className="ml-5 mt-1 mb-1.5 flex gap-1.5">
+                  <input
+                    value={newSubSubText[s.id] || ""}
+                    onChange={e => setNewSubSubText(prev => ({ ...prev, [s.id]: e.target.value }))}
+                    onKeyDown={e => { if (e.key === "Enter") addChild(s.id); }}
+                    placeholder="Add sub-sub-item…"
+                    className="flex-1 bg-slate-950 border border-slate-700 text-slate-200 text-xs px-2 py-0.5 rounded outline-none focus:border-teal-500 placeholder-slate-600" />
+                  <button onClick={() => addChild(s.id)}
+                    className="bg-slate-700 hover:bg-slate-600 text-white text-xs px-2 py-0.5 rounded">+</button>
+                </div>
+              </EditableCheckRow>
+            );
+          })}
         </div>
       )}
 
@@ -2859,11 +2961,15 @@ function SectionPanel({ section, filteredItems, secDone, secTotal, colId, onUpda
                         )}
                         {item.startDate && <span className="text-xs text-slate-500">Start: {formatDate(item.startDate)}</span>}
                         {hasNotes && <span className="text-xs text-slate-600">📝</span>}
-                        {(item.subtasks || []).length > 0 && (
-                          <span className="text-xs text-slate-500">
-                            ☐ {(item.subtasks || []).filter(s => s.done).length}/{(item.subtasks || []).length}
-                          </span>
-                        )}
+                        {(item.subtasks || []).length > 0 && (() => {
+                          const subs = item.subtasks || [];
+                          const allItems = subs.reduce((acc, s) => acc.concat(s, ...(s.children || [])), []);
+                          return (
+                            <span className="text-xs text-slate-500">
+                              ☐ {allItems.filter(x => x.done).length}/{allItems.length}
+                            </span>
+                          );
+                        })()}
                       </div>
                     </div>
 
