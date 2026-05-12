@@ -2084,6 +2084,659 @@ function CalendarView({ tasks, milestones, onAddMilestone, onDeleteMilestone, on
   );
 }
 
+// ─── MOVE CHECKLIST SEED DATA ────────────────────────────────────────────────
+// 10 columns, A–J. Stored separately under /api/checklist — never touches task data.
+
+function uid() { return Math.random().toString(36).slice(2, 10); }
+
+function makeItems(list) {
+  return list.map(text => ({ id: uid(), text, done: false }));
+}
+
+function generateSeedChecklist() {
+  return [
+    {
+      id: "current-house", label: "A. Current House",
+      sections: [
+        { id: uid(), title: "Current Home — Housing Strategy", items: makeItems([
+          "Decide: sell vs. rent current home",
+          "Home value assessment / comparative market analysis",
+          "Realtor selection and interview",
+          "Pre-listing repairs and improvements",
+          "Decluttering and staging",
+          "Photography and listing preparation",
+          "Understand mortgage payoff amount",
+          "Utility transfer / cancellation plan",
+          "HOA paperwork / lease notification if applicable",
+          "Final walkthrough and handoff checklist",
+        ])},
+        { id: uid(), title: "Current Home — Legal & Admin", items: makeItems([
+          "USPS mail forwarding set up",
+          "Driver's license update (FL)",
+          "Vehicle registration transfer to FL",
+          "Voter registration update",
+          "Update all insurance policies to FL address",
+          "Banking / credit card address changes",
+          "IRS and employer address updates",
+          "Estate / legal documents review",
+        ])},
+      ],
+    },
+    {
+      id: "moving", label: "B. Moving",
+      sections: [
+        { id: uid(), title: "Inventory & Downsizing", items: makeItems([
+          "Decide what to keep / sell / donate / trash",
+          "Organize garage sale or Facebook Marketplace listings",
+          "Hazardous item disposal (paint, batteries, propane)",
+          "Digitize important paperwork before packing",
+        ])},
+        { id: uid(), title: "Movers", items: makeItems([
+          "Get at least 3 moving quotes",
+          "Verify mover insurance and licensing (FMCSA)",
+          "Reserve movers early — target before June 15",
+          "Understand valuation / full replacement coverage",
+          "Create photo inventory of valuables before loading",
+        ])},
+        { id: uid(), title: "Packing", items: makeItems([
+          "Room-by-room labeling system agreed on",
+          "Pack essentials box (open first at new home)",
+          "Important documents folder kept with family — not on truck",
+          "Medications accessible during travel",
+          "Cleaning supplies packed separately for arrival",
+          "Tool kit accessible for furniture reassembly",
+          "Chargers, basic electronics, valuables travel with family",
+        ])},
+        { id: uid(), title: "Travel Planning", items: makeItems([
+          "Route planned (VT → FL or GA → FL)",
+          "Hotel reservations along route",
+          "Kid and pet travel needs prepared",
+          "Vehicle maintenance completed before departure",
+          "Emergency roadside kit in car",
+          "Weather / hurricane season planning",
+          "Gas and toll budget estimated",
+        ])},
+        { id: uid(), title: "Timeline — 3–6 Months Out (Now)", items: makeItems([
+          "Job and housing decisions made",
+          "Budget finalized",
+          "School research complete",
+          "Decluttering started",
+        ])},
+        { id: uid(), title: "Timeline — 2–3 Months Out (June–July)", items: makeItems([
+          "Movers booked",
+          "Current home listed or rented",
+          "School and medical records transfer started",
+          "Begin room-by-room packing",
+        ])},
+        { id: uid(), title: "Timeline — 1 Month Out (July)", items: makeItems([
+          "All address changes submitted",
+          "New utilities scheduled for setup",
+          "Deep packing (non-essentials)",
+          "All logistics confirmed with movers",
+        ])},
+        { id: uid(), title: "Timeline — Final Week", items: makeItems([
+          "Essentials boxes packed and labeled",
+          "Current home cleaned",
+          "Travel confirmed (hotels, route, car)",
+          "Final walkthrough of current home",
+          "Backup all important digital files / documents",
+        ])},
+        { id: uid(), title: "Arrival Checklist", items: makeItems([
+          "Inspect new home thoroughly on arrival",
+          "Test all utilities and appliances",
+          "Unpack essentials box first",
+          "Register vehicles in Florida",
+          "Enroll kids in schools",
+          "Locate urgent care, vet, and grocery store",
+          "Update employer and payroll records with new address",
+          "Meet neighbors and introduce family",
+        ])},
+      ],
+    },
+    {
+      id: "businesses", label: "C. Businesses",
+      sections: [
+        { id: uid(), title: "RetroMotion Creative", items: makeItems([
+          "Decide: keep lean / restructure / wind down / sell",
+          "Build full asset list (gear, IP, brand, contracts)",
+          "List all active client contracts and obligations",
+          "Identify transferable brand / IP / portfolio assets",
+          "Review all liabilities and outstanding debt",
+          "Speak with CPA and attorney about best exit structure",
+          "Create client transition / handoff plan",
+          "Preserve portfolio materials for Justin's freelance use",
+          "Define low-overhead operating model if keeping",
+          "Update business address and banking info",
+        ])},
+        { id: uid(), title: "Venetian Soda Lounge", items: makeItems([
+          "Make final sell vs. close decision",
+          "Create full asset inventory",
+          "Identify buyer types and outreach strategy",
+          "Clean up books and tax obligations",
+          "Define sell vs. close financial threshold",
+          "Create formal closure checklist",
+          "Communicate plan to staff and vendors",
+          "Cancel / transfer licenses, permits, insurance",
+          "Final utility and lease termination",
+        ])},
+        { id: uid(), title: "Venetian Beverages", items: makeItems([
+          "Resolve all remaining vendor liabilities",
+          "Close open accounts and cancel subscriptions",
+          "File final tax returns",
+          "Formally dissolve entity with state",
+          "Document any remaining debt for personal records",
+        ])},
+        { id: uid(), title: "Legal / CPA / Debt", items: makeItems([
+          "Initial consult with FL-licensed attorney and CPA",
+          "Identify which debts are business-only vs. personal exposure",
+          "Review bankruptcy / debt restructuring options if needed",
+          "Understand tax implications of business closure / sale",
+          "Confirm all payroll taxes are current",
+          "Protect Vermont home equity before any business action",
+        ])},
+      ],
+    },
+    {
+      id: "schools", label: "D. Schools",
+      sections: [
+        { id: uid(), title: "School Research & Enrollment", items: makeItems([
+          "Research best school districts in Orlando / Winter Park area",
+          "Verify school zone for each rental / home candidate",
+          "Check enrollment deadlines for August start",
+          "Visit schools virtually or in person",
+          "Submit enrollment paperwork before July 15",
+          "Sports and extracurricular activity continuity plan",
+          "Counseling or support resources if kids need help adjusting",
+        ])},
+        { id: uid(), title: "Records Transfer", items: makeItems([
+          "Request academic records from current school",
+          "Request medical and dental records for all three kids",
+          "Transfer prescriptions to FL pharmacy",
+          "Immunization records obtained and ready",
+          "IEP / 504 / special services documentation if applicable",
+        ])},
+        { id: uid(), title: "Kids Emotional Transition", items: makeItems([
+          "Family conversation about the move — honest and age-appropriate",
+          "Plan goodbye events with friends",
+          "Build excitement around FL (Disney, beach, activities)",
+          "Research local youth sports / clubs in target area",
+          "Plan summer activities around move to ease transition",
+          "Establish new routines quickly after arrival",
+        ])},
+        { id: uid(), title: "Pets", items: makeItems([
+          "Obtain all veterinary records",
+          "Vaccinations current and tags updated",
+          "Research FL interstate travel requirements",
+          "Book pet-friendly hotels along travel route",
+          "Anxiety / travel planning (vet consultation if needed)",
+          "Transfer prescriptions to FL vet",
+          "Research and select new veterinarian in target area",
+          "Florida pet licensing requirements confirmed",
+        ])},
+      ],
+    },
+    {
+      id: "utilities", label: "E. Utilities & Services",
+      sections: [
+        { id: uid(), title: "Cancel / Transfer — Current Home", items: makeItems([
+          "Electric / gas — cancel or transfer on move-out date",
+          "Water / sewer — cancellation scheduled",
+          "Internet — cancellation scheduled",
+          "Trash / recycling — cancellation scheduled",
+          "Propane / heating oil — final delivery and account close",
+          "Lawn care service — final date confirmed",
+          "Security system — cancel or transfer",
+          "Streaming / subscription services — address updated",
+        ])},
+        { id: uid(), title: "Set Up — New Florida Home", items: makeItems([
+          "Electric set up before arrival",
+          "Water confirmed active",
+          "Internet provider selected and scheduled",
+          "Streaming services updated to FL address",
+          "Home security system selected and installed",
+          "Pest control scheduled (critical in FL)",
+          "Lawn / landscaping service if needed",
+          "Pool service if applicable",
+          "Trash pickup schedule confirmed",
+        ])},
+      ],
+    },
+    {
+      id: "employment-justin", label: "F. Employment — Justin",
+      sections: [
+        { id: uid(), title: "W2 Job Search", items: makeItems([
+          "Build FL W2 target company list (creative, production, experiential)",
+          "Update resume tailored to FL market",
+          "Update LinkedIn — open to FL opportunities",
+          "Identify recruiters specializing in creative / production roles",
+          "Apply to minimum 5 target companies",
+          "First interviews scheduled",
+          "Job offer received",
+          "Offer accepted and start date confirmed",
+          "Understand benefits start date and gap coverage",
+          "Plan PTO usage around move",
+          "Obtain references and recommendation letters",
+        ])},
+        { id: uid(), title: "RetroMotion Freelance (if keeping)", items: makeItems([
+          "Define low-overhead solo operating model",
+          "Decide on LLC structure in Florida",
+          "Update RetroMotion address and banking",
+          "Identify first 2–3 FL-based project targets",
+          "Set minimum monthly revenue target",
+          "Separate business and personal finances clearly",
+        ])},
+        { id: uid(), title: "Licensing & Credentials", items: makeItems([
+          "Research any FL-specific licensing for production / creative work",
+          "Confirm business licenses transfer or need FL reissuance",
+          "Update professional memberships to FL address",
+        ])},
+      ],
+    },
+    {
+      id: "employment-anna", label: "G. Employment — Anna",
+      sections: [
+        { id: uid(), title: "Healthcare Leadership Job Search", items: makeItems([
+          "Build Anna FL healthcare leadership target list",
+          "Update resume and tailored cover letters",
+          "Update LinkedIn — open to FL healthcare leadership",
+          "Identify healthcare recruiters in FL",
+          "Target: $140K minimum / $160K+ preferred",
+          "Applications submitted to target organizations",
+          "First interviews scheduled",
+          "Offer received — minimum threshold met?",
+          "Offer accepted and start date confirmed",
+          "Understand relocation assistance offered (if any)",
+          "Verify benefits start date and coverage gap plan",
+          "Plan PTO usage to align with move",
+        ])},
+        { id: uid(), title: "Credentials & Licensing", items: makeItems([
+          "Research FL nursing / healthcare licensing requirements",
+          "Submit FL license application or endorsement early",
+          "Obtain copies of certifications and credentials",
+          "Research licensing timeline (FL can take 4–8 weeks)",
+          "Confirm license active before start date",
+          "Obtain references and recommendation letters",
+          "Update professional memberships to FL address",
+        ])},
+      ],
+    },
+    {
+      id: "new-home", label: "H. New House / Apartment",
+      sections: [
+        { id: uid(), title: "Rental Strategy (Rent First)", items: makeItems([
+          "Confirm rent-first approach is the plan",
+          "Set rental budget (target under 30% of gross income)",
+          "Define target neighborhoods in Orlando / Winter Park",
+          "Verify school district for each candidate property",
+          "Analyze commute for Anna's new employer",
+          "Identify 3–5 top rental properties",
+          "Budget for deposits (first + last + security)",
+          "Temporary housing backup plan if rental falls through",
+          "Storage unit needs assessed",
+          "Lease signed — move-in confirmed before August 1",
+        ])},
+        { id: uid(), title: "Home Purchase (When Ready — Not Yet)", items: makeItems([
+          "Confirm debt clarity before considering purchase",
+          "Confirm both incomes stable for 6–12 months",
+          "Cash reserves at target level",
+          "Get mortgage preapproval",
+          "Define target purchase price range",
+          "Select buyer's agent in FL",
+          "Do NOT rush — rent at least 6–12 months first",
+        ])},
+        { id: uid(), title: "Arrival Setup", items: makeItems([
+          "Keys and access confirmed ahead of move-in",
+          "Walkthrough completed before moving truck arrives",
+          "Furniture layout plan ready",
+          "Essential furniture / items purchased or ordered",
+          "Internet set up before arrival if possible",
+          "Welcome kit / first-week supplies ready",
+        ])},
+      ],
+    },
+    {
+      id: "financial", label: "I. Financial Planning",
+      sections: [
+        { id: uid(), title: "Move Budget", items: makeItems([
+          "Moving company / truck — estimate obtained",
+          "Rental deposits budgeted",
+          "Travel costs (gas, hotels, food)",
+          "Utility setup fees budgeted",
+          "Repairs / staging for current home",
+          "Cleaning costs (current and new home)",
+          "Vehicle shipping if needed",
+          "Storage unit costs",
+          "Pet transport costs",
+          "New furniture and home items budget",
+          "Total move cost estimate finalized",
+        ])},
+        { id: uid(), title: "Financial Health", items: makeItems([
+          "Emergency fund at 3+ months of expenses",
+          "Down payment / liquidity plan defined",
+          "Cost of living comparison (VT/GA vs. FL) done",
+          "Mortgage preapproval strategy during job transition planned",
+          "Insurance quotes compared (home, auto, health)",
+          "Moving expense tracking set up",
+          "Banking information / address updates scheduled",
+          "All subscriptions and auto-pays reviewed",
+        ])},
+        { id: uid(), title: "Tax & Legal", items: makeItems([
+          "Tax implications of move and business changes reviewed with CPA",
+          "Florida has no state income tax — confirm benefit",
+          "Business closure / sale tax treatment understood",
+          "Vermont home sale capital gains reviewed if selling",
+          "Update W-4 with new employer",
+          "Review retirement accounts — any changes needed?",
+          "Estate documents reviewed and updated if needed",
+        ])},
+        { id: uid(), title: "Medical & Insurance", items: makeItems([
+          "Health insurance transition plan (gap coverage if needed)",
+          "Transfer primary care physician records",
+          "Specialist continuity plan for all family members",
+          "Prescription transfers to FL pharmacy",
+          "Dental and vision appointments completed before move",
+          "Therapy / counseling continuity if applicable",
+          "Obtain copies of all medical records",
+          "Life / disability insurance policies reviewed",
+        ])},
+      ],
+    },
+    {
+      id: "do-not-forget", label: "J. Do Not Forget",
+      sections: [
+        { id: uid(), title: "Records Binder — Keep With Family (Not on Truck)", items: makeItems([
+          "Passports — all family members",
+          "Driver's licenses / state IDs",
+          "Birth certificates — all family members",
+          "Social Security cards — all family members",
+          "Marriage certificate",
+          "Medical records — adults",
+          "Medical records — all children",
+          "School records — all children",
+          "Pet veterinary records",
+          "Mortgage / lease documents — current and new",
+          "Moving company contract",
+          "Vehicle titles",
+          "Insurance documents (home, auto, health, life)",
+          "Business formation documents",
+          "Checkbook / small amount of cash",
+          "Medication list for all family members",
+          "Emergency contacts printed list",
+          "Immunization records — all family members",
+          "Financial account information (offline copy)",
+        ])},
+        { id: uid(), title: "Emotional & Lifestyle", items: makeItems([
+          "Family discussion about the move — expectations aligned",
+          "Goodbye events planned for friends and community",
+          "Excitement built around FL lifestyle (beach, weather, activities)",
+          "Local FL activities / community researched",
+          "First-week Florida essentials planned",
+          "Support systems identified in FL (church, community, etc.)",
+          "Routines established quickly after arrival",
+          "Family check-in scheduled 30 days after move",
+        ])},
+      ],
+    },
+  ];
+}
+
+// ─── MOVE CHECKLIST COMPONENT ─────────────────────────────────────────────────
+
+function MoveChecklist({ tasks }) {
+  const [columns, setColumns] = useState(null);
+  const [activeCol, setActiveCol] = useState("current-house");
+  const [loading, setLoading]   = useState(true);
+  const [filter, setFilter]     = useState(""); // search text
+  const saveTimer = useRef(null);
+
+  // Load from cloud on mount
+  useEffect(() => {
+    setLoading(true);
+    fetch("/api/checklist", { credentials: "same-origin" })
+      .then(r => r.json())
+      .then(data => {
+        if (data && Array.isArray(data)) {
+          setColumns(data);
+        } else {
+          const seed = generateSeedChecklist();
+          setColumns(seed);
+          saveChecklist(seed);
+        }
+      })
+      .catch(() => { setColumns(generateSeedChecklist()); })
+      .finally(() => setLoading(false));
+  }, []);
+
+  function saveChecklist(cols) {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      fetch("/api/checklist", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cols),
+      }).catch(() => {});
+    }, 1000);
+  }
+
+  function toggleItem(colId, sectionId, itemId) {
+    setColumns(prev => {
+      const next = prev.map(col => {
+        if (col.id !== colId) return col;
+        return {
+          ...col,
+          sections: col.sections.map(sec => {
+            if (sec.id !== sectionId) return sec;
+            return {
+              ...sec,
+              items: sec.items.map(item =>
+                item.id === itemId ? { ...item, done: !item.done } : item
+              ),
+            };
+          }),
+        };
+      });
+      saveChecklist(next);
+      return next;
+    });
+  }
+
+  function addItem(colId, sectionId, text) {
+    if (!text.trim()) return;
+    setColumns(prev => {
+      const next = prev.map(col => {
+        if (col.id !== colId) return col;
+        return {
+          ...col,
+          sections: col.sections.map(sec => {
+            if (sec.id !== sectionId) return sec;
+            return { ...sec, items: [...sec.items, { id: uid(), text: text.trim(), done: false }] };
+          }),
+        };
+      });
+      saveChecklist(next);
+      return next;
+    });
+  }
+
+  function deleteItem(colId, sectionId, itemId) {
+    setColumns(prev => {
+      const next = prev.map(col => {
+        if (col.id !== colId) return col;
+        return {
+          ...col,
+          sections: col.sections.map(sec => {
+            if (sec.id !== sectionId) return sec;
+            return { ...sec, items: sec.items.filter(i => i.id !== itemId) };
+          }),
+        };
+      });
+      saveChecklist(next);
+      return next;
+    });
+  }
+
+  if (loading || !columns) {
+    return <div className="text-slate-400 text-sm text-center py-16">Loading checklist…</div>;
+  }
+
+  const col = columns.find(c => c.id === activeCol) || columns[0];
+
+  // Overall progress across all columns
+  const allItems   = columns.flatMap(c => c.sections.flatMap(s => s.items));
+  const totalDone  = allItems.filter(i => i.done).length;
+  const totalItems = allItems.length;
+  const pct        = totalItems > 0 ? Math.round((totalDone / totalItems) * 100) : 0;
+
+  // Column progress
+  function colProgress(c) {
+    const items = c.sections.flatMap(s => s.items);
+    const done  = items.filter(i => i.done).length;
+    return { done, total: items.length, pct: items.length > 0 ? Math.round((done / items.length) * 100) : 0 };
+  }
+
+  // Filter items by search
+  function matchesFilter(text) {
+    return !filter || text.toLowerCase().includes(filter.toLowerCase());
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+        <div>
+          <h2 className="text-xl font-bold text-white">Move Checklist</h2>
+          <p className="text-sm text-slate-400">Comprehensive household move tracker. Saved to the cloud — shared across all devices.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <input value={filter} onChange={e => setFilter(e.target.value)} placeholder="Search…"
+            className="bg-slate-800 border border-slate-700 text-slate-200 text-xs px-3 py-1.5 rounded-lg outline-none focus:border-teal-500 w-40" />
+          <div className="text-right">
+            <span className="text-teal-400 text-sm font-bold">{pct}%</span>
+            <span className="text-slate-500 text-xs ml-1">complete</span>
+            <div className="w-32 bg-slate-700 rounded-full h-1.5 mt-1">
+              <div className="bg-teal-500 h-1.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
+            </div>
+            <p className="text-slate-600 text-xs mt-0.5">{totalDone} / {totalItems} items</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Column tabs — horizontal scroll on mobile */}
+      <div className="flex gap-1.5 overflow-x-auto pb-2 mb-5 scrollbar-thin">
+        {columns.map(c => {
+          const cp = colProgress(c);
+          const isActive = c.id === activeCol;
+          return (
+            <button key={c.id} onClick={() => setActiveCol(c.id)}
+              className={`shrink-0 text-xs px-3 py-2 rounded-lg border transition-all font-medium whitespace-nowrap
+                ${isActive
+                  ? "bg-teal-700 border-teal-600 text-white"
+                  : cp.done === cp.total && cp.total > 0
+                    ? "bg-emerald-900/40 border-emerald-700 text-emerald-300"
+                    : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-white"}`}>
+              {c.label}
+              {cp.total > 0 && (
+                <span className={`ml-1.5 text-xs ${isActive ? "text-teal-200" : cp.done === cp.total ? "text-emerald-400" : "text-slate-500"}`}>
+                  {cp.done}/{cp.total}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Active column content */}
+      <div className="space-y-4">
+        {col.sections.map(sec => {
+          const secItems  = sec.items.filter(i => matchesFilter(i.text));
+          const secDone   = sec.items.filter(i => i.done).length;
+          const secTotal  = sec.items.length;
+          if (filter && secItems.length === 0) return null;
+
+          return (
+            <SectionPanel
+              key={sec.id}
+              section={sec}
+              filteredItems={secItems}
+              secDone={secDone}
+              secTotal={secTotal}
+              colId={col.id}
+              onToggle={(itemId) => toggleItem(col.id, sec.id, itemId)}
+              onAdd={(text) => addItem(col.id, sec.id, text)}
+              onDelete={(itemId) => deleteItem(col.id, sec.id, itemId)}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SectionPanel({ section, filteredItems, secDone, secTotal, colId, onToggle, onAdd, onDelete }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [newText, setNewText]     = useState("");
+  const [hoverId, setHoverId]     = useState(null);
+  const pct = secTotal > 0 ? Math.round((secDone / secTotal) * 100) : 0;
+  const allDone = secDone === secTotal && secTotal > 0;
+
+  return (
+    <div className={`rounded-xl border overflow-hidden transition-all ${allDone ? "border-emerald-800 bg-emerald-950/20" : "border-slate-700 bg-slate-800/60"}`}>
+      {/* Section header */}
+      <div className="flex items-center justify-between px-4 py-3 cursor-pointer" onClick={() => setCollapsed(v => !v)}>
+        <div className="flex items-center gap-3 min-w-0">
+          {allDone
+            ? <span className="text-emerald-400 text-base shrink-0">✓</span>
+            : <span className="text-slate-400 text-base shrink-0">☐</span>}
+          <span className={`font-semibold text-sm truncate ${allDone ? "text-emerald-300" : "text-white"}`}>{section.title}</span>
+        </div>
+        <div className="flex items-center gap-3 shrink-0 ml-3" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center gap-2">
+            <div className="w-20 bg-slate-700 rounded-full h-1.5 hidden sm:block">
+              <div className={`h-1.5 rounded-full transition-all ${allDone ? "bg-emerald-500" : "bg-teal-500"}`} style={{ width: `${pct}%` }} />
+            </div>
+            <span className={`text-xs font-medium ${allDone ? "text-emerald-400" : "text-slate-400"}`}>{secDone}/{secTotal}</span>
+          </div>
+          <span className="text-slate-500 text-sm">{collapsed ? "▶" : "▼"}</span>
+        </div>
+      </div>
+
+      {!collapsed && (
+        <div className="px-4 pb-3">
+          <div className="space-y-1 mb-3">
+            {filteredItems.map(item => (
+              <div key={item.id} className="flex items-start gap-2 group py-1 rounded hover:bg-slate-700/30 px-1"
+                onMouseEnter={() => setHoverId(item.id)} onMouseLeave={() => setHoverId(null)}>
+                <button onClick={() => onToggle(item.id)}
+                  className={`mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all
+                    ${item.done ? "bg-emerald-600 border-emerald-600" : "border-slate-500 hover:border-teal-400"}`}>
+                  {item.done && <span className="text-white leading-none" style={{fontSize:"9px"}}>✓</span>}
+                </button>
+                <span className={`text-sm flex-1 leading-snug ${item.done ? "line-through text-slate-500" : "text-slate-200"}`}>
+                  {item.text}
+                </span>
+                {hoverId === item.id && (
+                  <button onClick={() => onDelete(item.id)} className="text-slate-600 hover:text-red-400 text-xs shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Add item */}
+          <div className="flex gap-2 mt-2">
+            <input value={newText} onChange={e => setNewText(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && newText.trim()) { onAdd(newText); setNewText(""); } }}
+              placeholder="Add item…"
+              className="flex-1 bg-slate-900 border border-slate-700 text-slate-200 text-xs px-2.5 py-1.5 rounded-lg outline-none focus:border-teal-500 placeholder-slate-600" />
+            <button onClick={() => { if (newText.trim()) { onAdd(newText); setNewText(""); } }}
+              className="bg-teal-700 hover:bg-teal-600 text-white text-xs px-3 py-1.5 rounded-lg">Add</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── NOTES & LOG ──────────────────────────────────────────────────────────────
 
 function NotesLog({ notes, loading, onAdd, onDelete, onPin }) {
@@ -2267,7 +2920,7 @@ function App() {
 
   const [editingPathwayId, setEditingPathwayId] = useState(null);
   const [showRolloverModal, setShowRolloverModal] = useState(false);
-  const [activeTab, setActiveTab] = useState("dashboard"); // dashboard | tasks | calendar | notes
+  const [activeTab, setActiveTab] = useState("dashboard"); // dashboard | tasks | checklist | calendar | notes
   const [notes, setNotes] = useState([]);
   const [milestones, setMilestones] = useState(() => {
     try {
@@ -2461,6 +3114,10 @@ function App() {
                   className={`text-sm px-3 py-1.5 rounded-lg font-medium transition-all ${activeTab === "tasks" ? "bg-teal-700 text-white" : "text-slate-400 hover:text-white hover:bg-slate-800"}`}
                 >All Tasks</button>
                 <button
+                  onClick={() => setActiveTab("checklist")}
+                  className={`text-sm px-3 py-1.5 rounded-lg font-medium transition-all ${activeTab === "checklist" ? "bg-teal-700 text-white" : "text-slate-400 hover:text-white hover:bg-slate-800"}`}
+                >✅ Move Checklist</button>
+                <button
                   onClick={() => setActiveTab("calendar")}
                   className={`text-sm px-3 py-1.5 rounded-lg font-medium transition-all ${activeTab === "calendar" ? "bg-teal-700 text-white" : "text-slate-400 hover:text-white hover:bg-slate-800"}`}
                 >📅 Calendar</button>
@@ -2504,6 +3161,7 @@ function App() {
           <div className="flex sm:hidden gap-1 mt-2">
             <button onClick={() => setActiveTab("dashboard")} className={`text-sm px-3 py-1.5 rounded-lg font-medium flex-1 ${activeTab === "dashboard" ? "bg-teal-700 text-white" : "text-slate-400 bg-slate-800"}`}>Dashboard</button>
             <button onClick={() => setActiveTab("tasks")} className={`text-sm px-3 py-1.5 rounded-lg font-medium flex-1 ${activeTab === "tasks" ? "bg-teal-700 text-white" : "text-slate-400 bg-slate-800"}`}>Tasks</button>
+            <button onClick={() => setActiveTab("checklist")} className={`text-sm px-3 py-1.5 rounded-lg font-medium flex-1 ${activeTab === "checklist" ? "bg-teal-700 text-white" : "text-slate-400 bg-slate-800"}`}>✅</button>
             <button onClick={() => setActiveTab("calendar")} className={`text-sm px-3 py-1.5 rounded-lg font-medium flex-1 ${activeTab === "calendar" ? "bg-teal-700 text-white" : "text-slate-400 bg-slate-800"}`}>📅 Cal</button>
             <button onClick={() => setActiveTab("notes")} className={`text-sm px-3 py-1.5 rounded-lg font-medium flex-1 ${activeTab === "notes" ? "bg-teal-700 text-white" : "text-slate-400 bg-slate-800"}`}>📝 Log</button>
           </div>
@@ -2519,7 +3177,9 @@ function App() {
           onEditPathway={handleEditPathway}
         />
 
-        {activeTab === "calendar" ? (
+        {activeTab === "checklist" ? (
+          <MoveChecklist tasks={tasks} />
+        ) : activeTab === "calendar" ? (
           <CalendarView
             tasks={tasks}
             milestones={milestones}
