@@ -2142,6 +2142,7 @@ function makeItems(list) {
     status: "not-started", // "not-started" | "started" | "in-progress"
     assignee: "Both",      // "Justin" | "Anna" | "Both"
     notes: "",
+    subtasks: [],          // nested checklist: [{ id, text, done }]
   }));
 }
 
@@ -2605,6 +2606,7 @@ function MoveChecklist({ tasks }) {
             return { ...sec, items: [...sec.items, {
               id: uid(), text: text.trim(), done: false,
               dueDate: null, startDate: null, status: "not-started", assignee: "Both", notes: "",
+              subtasks: [],
             }] };
           }),
         };
@@ -2728,6 +2730,62 @@ function MoveChecklist({ tasks }) {
   );
 }
 
+// ── Nested sub-checklist for Move Checklist items ──
+function ChecklistSubtasks({ subtasks, onChange }) {
+  const [newText, setNewText] = useState("");
+
+  function toggle(id) {
+    onChange(subtasks.map(s => s.id === id ? { ...s, done: !s.done } : s));
+  }
+  function remove(id) {
+    onChange(subtasks.filter(s => s.id !== id));
+  }
+  function add() {
+    if (!newText.trim()) return;
+    onChange([...subtasks, { id: uid(), text: newText.trim(), done: false }]);
+    setNewText("");
+  }
+
+  const doneCount = subtasks.filter(s => s.done).length;
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-1.5">
+        <label className="block text-xs text-slate-500 uppercase tracking-wide">Sub-Checklist</label>
+        {subtasks.length > 0 && (
+          <span className="text-xs text-slate-500">{doneCount}/{subtasks.length}</span>
+        )}
+      </div>
+
+      {subtasks.length > 0 && (
+        <div className="space-y-0.5 mb-2 pl-1">
+          {subtasks.map(s => (
+            <div key={s.id} className="flex items-center gap-2 group py-0.5">
+              <button onClick={() => toggle(s.id)}
+                className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center shrink-0 transition-all
+                  ${s.done ? "bg-emerald-600 border-emerald-600" : "border-slate-500 hover:border-teal-400"}`}>
+                {s.done && <span className="text-white leading-none" style={{fontSize:"8px"}}>✓</span>}
+              </button>
+              <span className={`text-xs flex-1 ${s.done ? "line-through text-slate-500" : "text-slate-300"}`}>{s.text}</span>
+              <button onClick={() => remove(s.id)}
+                className="text-slate-700 hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity shrink-0">✕</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <input value={newText} onChange={e => setNewText(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") add(); }}
+          placeholder="Add sub-item…"
+          className="flex-1 bg-slate-950 border border-slate-700 text-slate-200 text-xs px-2 py-1 rounded outline-none focus:border-teal-500 placeholder-slate-600" />
+        <button onClick={add}
+          className="bg-slate-700 hover:bg-slate-600 text-white text-xs px-2.5 py-1 rounded">Add</button>
+      </div>
+    </div>
+  );
+}
+
 const CL_STATUS_STYLES = {
   "not-started": { label: "Not Started", bg: "bg-slate-600", text: "text-slate-200" },
   "started":     { label: "Started",     bg: "bg-sky-700",   text: "text-sky-100" },
@@ -2801,6 +2859,11 @@ function SectionPanel({ section, filteredItems, secDone, secTotal, colId, onUpda
                         )}
                         {item.startDate && <span className="text-xs text-slate-500">Start: {formatDate(item.startDate)}</span>}
                         {hasNotes && <span className="text-xs text-slate-600">📝</span>}
+                        {(item.subtasks || []).length > 0 && (
+                          <span className="text-xs text-slate-500">
+                            ☐ {(item.subtasks || []).filter(s => s.done).length}/{(item.subtasks || []).length}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -2873,6 +2936,12 @@ function SectionPanel({ section, filteredItems, secDone, secTotal, colId, onUpda
                           placeholder="Add notes…"
                           className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:border-teal-500 placeholder-slate-600 resize-none" />
                       </div>
+
+                      {/* Subtasks / Sub-checklist */}
+                      <ChecklistSubtasks
+                        subtasks={item.subtasks || []}
+                        onChange={(updated) => onUpdateItem(item.id, { subtasks: updated })}
+                      />
                     </div>
                   )}
                 </div>
